@@ -23,6 +23,9 @@ const ProductFormView = ({ initialData, onBack, onSave, onNew, categories, onAdd
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'category' && value === 'CREATE_NEW') { setIsCreatingCategory(true); return; }
+    if (['salesPrice', 'purchaseCost'].includes(name) && value !== '' && Number(value) < 0) {
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -43,63 +46,61 @@ const ProductFormView = ({ initialData, onBack, onSave, onNew, categories, onAdd
   };
 
   return (
-    <div className="max-w-4xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex justify-between items-center pb-6 mb-8 border-b border-slate-100">
-        <div className="flex gap-3">
+    <div className="panel max-w-4xl mx-auto fade-in">
+      <div className="panel-head">
+        <div className="cluster">
           <Button onClick={() => { setFormData(EMPTY_PRODUCT); setIsCreatingCategory(false); setErrorMsg(''); if (onNew) onNew(); }} variant="secondary">New</Button>
-          <Button onClick={handleConfirmSubmit} variant="pink">Confirm</Button>
+          <Button onClick={handleConfirmSubmit} variant="primary">Confirm</Button>
         </div>
         <Button onClick={onBack} variant="secondary">Back</Button>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">
-        {formData.id ? 'Edit Product Master' : 'Product Master Form View'}
+      <h2 className="h2" style={{ marginBottom: '1.25rem' }}>
+        {formData.id ? `Edit Product: ${formData.name}` : 'Create Product Master'}
       </h2>
 
-      {errorMsg && <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg">⚠️ {errorMsg}</div>}
+      {errorMsg && <div className="form-error">{errorMsg}</div>}
 
-      <div className="space-y-7">
-        <div className="flex items-baseline">
-          <label className="w-36 font-bold text-orange-700 text-sm">Product Name</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Executive Office Chair" className="flex-1 product-underline-input py-1.5 bg-transparent text-slate-900 font-medium" />
+      <div className="stack" style={{ gap: '1.25rem' }}>
+        <div className="form-row">
+          <label className="form-label">Product Name</label>
+          <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Executive Office Chair" className="input" />
         </div>
 
-        <div className="flex items-baseline">
-          <label className="w-36 font-bold text-orange-700 text-sm">Product Type</label>
-          <select name="type" value={formData.type} onChange={handleChange} className="flex-1 product-underline-input py-1.5 bg-transparent text-slate-900 font-medium cursor-pointer">
+        <div className="form-row">
+          <label className="form-label">Product Type</label>
+          <select name="type" value={formData.type} onChange={handleChange} className="input">
             <option value="goods">Goods</option>
             <option value="service">Service</option>
             <option value="combo">Combo</option>
           </select>
         </div>
 
-        <div className="flex items-baseline">
-          <label className="w-36 font-bold text-orange-700 text-sm">Category</label>
+        <div className="form-row">
+          <label className="form-label">Category</label>
           {isCreatingCategory ? (
-            <div className="flex-1 flex gap-2 items-center bg-orange-50/80 p-2 rounded-xl border border-orange-200">
-              <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Enter New Category Name…" className="flex-1 bg-white px-3 py-1 text-sm text-slate-800 rounded-lg border border-orange-300 focus:outline-none" autoFocus />
-              <Button onClick={handleSaveNewCategory} variant="success" className="!px-3 !py-1.5 !text-xs !rounded-lg">Save</Button>
-              <Button onClick={() => setIsCreatingCategory(false)} variant="ghost" className="!px-2 !text-xs">Cancel</Button>
+            <div className="row grow" style={{ background: 'var(--bg)', padding: '6px', borderRadius: '4px', border: '1px solid var(--line)' }}>
+              <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="Enter New Category Name…" className="input grow" autoFocus />
+              <Button onClick={handleSaveNewCategory} variant="primary" className="btn-sm">Save</Button>
+              <Button onClick={() => setIsCreatingCategory(false)} variant="ghost" className="btn-sm">Cancel</Button>
             </div>
           ) : (
-            <select name="category" value={formData.category} onChange={handleChange} className="flex-1 product-underline-input py-1.5 bg-transparent text-slate-900 font-medium cursor-pointer">
-              <option value="" disabled>Select…</option>
+            <select name="category" value={formData.category} onChange={handleChange} className="input">
+              <option value="" disabled>Select category…</option>
               {categories.map((cat, idx) => <option key={idx} value={cat}>{cat}</option>)}
-              <option value="CREATE_NEW" className="font-bold text-orange-600">+ Create New Category…</option>
+              <option value="CREATE_NEW">+ Create New Category…</option>
             </select>
           )}
         </div>
 
-        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-6 border-t border-slate-100">
-          <div className="flex items-baseline">
-            <label className="w-24 font-bold text-orange-700 text-sm">Sales Price</label>
-            <span className="text-slate-500 mr-2 text-sm font-medium">Rs.</span>
-            <input type="number" name="salesPrice" value={formData.salesPrice} onChange={handleChange} placeholder="100.00" className="flex-1 product-underline-input py-1 bg-transparent text-sm text-slate-900 font-mono font-bold" />
+        <div className="price-grid">
+          <div className="form-row">
+            <label className="form-label" style={{ width: '6rem' }}>Sales Price</label>
+            <input type="number" min="0" step="0.1" name="salesPrice" value={formData.salesPrice} onChange={handleChange} placeholder="0.00" className="input mono" />
           </div>
-          <div className="flex items-baseline">
-            <label className="w-28 font-bold text-orange-700 text-sm">Purchase Cost</label>
-            <span className="text-slate-500 mr-2 text-sm font-medium">Rs.</span>
-            <input type="number" name="purchaseCost" value={formData.purchaseCost} onChange={handleChange} placeholder="50.00" className="flex-1 product-underline-input py-1 bg-transparent text-sm text-slate-900 font-mono font-bold" />
+          <div className="form-row">
+            <label className="form-label" style={{ width: '6rem' }}>Purchase Cost</label>
+            <input type="number" min="0" step="0.1" name="purchaseCost" value={formData.purchaseCost} onChange={handleChange} placeholder="0.00" className="input mono" />
           </div>
         </div>
       </div>
@@ -113,50 +114,53 @@ const ProductListView = ({ products, user, onNew, onSwitchToKanban, onSelectRow,
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="max-w-6xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="flex items-center gap-3 w-full sm:w-2/3">
-          <Button onClick={onNew} variant="secondary">New</Button>
+    <div className="panel fade-in">
+      <div className="toolbar">
+        <div className="cluster grow" style={{ maxWidth: 500 }}>
+          <Button onClick={onNew} variant="primary">New Product</Button>
           <input type="text" placeholder="Search products by name, category, or type…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm" />
+            className="input grow" />
         </div>
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <Button variant="secondary" className="!px-3 !py-1.5"><span className="text-base">&#9776;</span> List</Button>
-          <Button variant="ghost" onClick={onSwitchToKanban} className="!px-3 !py-1.5"><span className="text-base">&#8862;</span> Kanban</Button>
+        <div className="view-toggle">
+          <Button variant="secondary" className="btn-sm">List</Button>
+          <Button variant="ghost" onClick={onSwitchToKanban} className="btn-sm">Kanban</Button>
         </div>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">Product Master List View</h2>
-      <div className="overflow-hidden bg-white rounded-2xl border border-slate-300 shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="table-wrap">
+        <table className="data-table">
           <thead>
-            <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
-              <th className="py-4 px-4">Product</th>
-              <th className="py-4 px-4">Category</th>
-              <th className="py-4 px-4">Type</th>
-              <th className="py-4 px-4 text-right">Sales Price</th>
-              <th className="py-4 px-4 text-right">Purchase Cost</th>
-              <th className="py-4 px-4 text-right">Qty on Hand</th>
-              {isAdmin && <th className="py-4 px-4 text-center">Actions</th>}
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th className="t-right">Sales Price</th>
+              <th className="t-right">Purchase Cost</th>
+              <th className="t-right">Qty on Hand</th>
+              {isAdmin && <th className="t-center">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 text-sm bg-white">
+          <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={isAdmin ? 7 : 6} className="py-12 text-center text-slate-400 font-medium">No products match your search query.</td></tr>
+              <tr><td colSpan={isAdmin ? 7 : 6} className="empty">No products match your search query.</td></tr>
             ) : (
               pageItems.map((product) => (
-                <tr key={product.id} onClick={() => onSelectRow(product)} className="hover:bg-orange-50/40 cursor-pointer transition-colors group">
-                  <td className="py-4 px-4 font-bold text-slate-900 group-hover:text-orange-600">{product.name}</td>
-                  <td className="py-4 px-4 text-slate-600 font-medium"><span className="px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-700 font-semibold">{product.category || 'Uncategorized'}</span></td>
-                  <td className="py-4 px-4 text-slate-600">{product.type}</td>
-                  <td className="py-4 px-4 text-slate-900 font-mono font-bold text-right">Rs. {Number(product.salesPrice || 0).toLocaleString()}</td>
-                  <td className="py-4 px-4 text-slate-900 font-mono text-right">Rs. {Number(product.purchaseCost || 0).toLocaleString()}</td>
-                  <td className="py-4 px-4 text-slate-700 font-mono text-right">{Number(product.quantityOnHand || 0)}</td>
+                <tr key={product.id} onClick={() => onSelectRow(product)} className="clickable">
+                  <td style={{ fontWeight: 650, color: 'var(--ink)' }}>{product.name}</td>
+                  <td><span className="pill pill-neutral">{product.category || 'General'}</span></td>
+                  <td style={{ textTransform: 'capitalize' }}>{product.type}</td>
+                  <td className="t-right mono" style={{ fontWeight: 650, color: 'var(--ink)' }}>₹{Number(product.salesPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="t-right mono" style={{ color: 'var(--muted)' }}>₹{Number(product.purchaseCost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="t-right mono" style={{ fontWeight: 600 }}>{Number(product.quantityOnHand || 0)}</td>
                   {isAdmin && (
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex gap-1 justify-center">
-                        <button onClick={(e) => { e.stopPropagation(); onArchive(product); }} className="text-xs text-amber-600 hover:underline" title={product.isArchived ? 'Unarchive' : 'Archive'}>{product.isArchived ? '📂' : '📁'}</button>
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(product); }} className="text-xs text-red-500 hover:underline" title="Delete">🗑️</button>
+                    <td className="t-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                        <button type="button" onClick={() => onArchive(product)} className="btn btn-secondary btn-sm" title={product.isArchived ? 'Unarchive' : 'Archive'}>
+                          {product.isArchived ? 'Unarchive' : 'Archive'}
+                        </button>
+                        <button type="button" onClick={() => onDelete(product)} className="btn btn-danger btn-sm" title="Delete">
+                          Delete
+                        </button>
                       </div>
                     </td>
                   )}
@@ -176,35 +180,33 @@ const ProductKanbanView = ({ products, onNew, onSwitchToList, onSelectCard }) =>
     (p, q) => p.name.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
 
   return (
-    <div className="max-w-5xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="flex items-center gap-3 w-full sm:w-2/3">
-          <Button onClick={onNew} variant="secondary">New</Button>
+    <div className="panel fade-in">
+      <div className="toolbar">
+        <div className="cluster grow" style={{ maxWidth: 500 }}>
+          <Button onClick={onNew} variant="primary">New Product</Button>
           <input type="text" placeholder="Search cards by name or category…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm" />
+            className="input grow" />
         </div>
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <Button variant="ghost" onClick={onSwitchToList} className="!px-3 !py-1.5"><span className="text-base">&#9776;</span> List</Button>
-          <Button variant="secondary" className="!px-3 !py-1.5"><span className="text-base">&#8862;</span> Kanban</Button>
+        <div className="view-toggle">
+          <Button variant="ghost" onClick={onSwitchToList} className="btn-sm">List</Button>
+          <Button variant="secondary" className="btn-sm">Kanban</Button>
         </div>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">Product Master Kanban View</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="kanban">
         {pageItems.length === 0 ? (
-          <div className="col-span-full py-12 text-center text-slate-400 font-medium bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">No products found.</div>
+          <div className="kanban-empty">No products found.</div>
         ) : (
           pageItems.map((product) => (
-            <div key={product.id} onClick={() => onSelectCard(product)} className="p-5 bg-white rounded-2xl border border-slate-200 hover:border-orange-300 hover:-translate-y-0.5 transition-all cursor-pointer flex items-center gap-5 group">
-              <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-200 flex-shrink-0 flex items-center justify-center font-bold text-slate-400 text-xl">
-                {product.name ? product.name.charAt(0).toUpperCase() : '?'}
+            <div key={product.id} onClick={() => onSelectCard(product)} className="kanban-card">
+              <div className="thumb">
+                {product.name ? product.name.charAt(0).toUpperCase() : 'P'}
               </div>
-              <div className="flex-1 overflow-x-auto">
-                <h3 className="font-bold text-lg text-slate-900 truncate mb-1 group-hover:text-orange-600">{product.name}</h3>
-                <div className="flex flex-col gap-0.5 text-xs text-slate-500 font-mono">
-                  <p className="font-semibold text-slate-700">Sales Price <span className="text-orange-600 font-bold">{Number(product.salesPrice || 0).toLocaleString()}</span></p>
-                  <p>Cost <span className="text-slate-400">{Number(product.purchaseCost || 0).toLocaleString()}</span></p>
-                  <p className="text-green-400 text-[11px]">Qty: {Number(product.quantityOnHand || 0)}</p>
+              <div className="grow" style={{ overflow: 'hidden' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</h3>
+                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '4px' }}>
+                  <p className="mono">Price: ₹{Number(product.salesPrice || 0).toLocaleString('en-IN')}</p>
+                  <p className="mono">Qty: {Number(product.quantityOnHand || 0)}</p>
                 </div>
               </div>
             </div>
@@ -277,7 +279,7 @@ export default function ProductsModule({ user }) {
   };
 
   return (
-    <ModuleShell title="Product Master Suite" subtitle="Catalog of goods, services and combos with stock on hand" error={error} onDismissError={() => setError('')}>
+    <ModuleShell title="Products & Inventory" subtitle="Catalog of goods, services and combos with stock on hand" error={error} onDismissError={() => setError('')}>
       {activeView === 'form' && (
         <ProductFormView initialData={editingProduct} onBack={() => setActiveView('list')} onSave={handleSaveProduct} onNew={handleOpenNewForm} categories={categories} onAddCategory={handleAddCategory} />
       )}

@@ -19,6 +19,9 @@ const EntryFormView = ({ journals, accounts, onBack, onSaved }) => {
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
 
   const setLine = (idx, field, value) => {
+    if (['debit', 'credit'].includes(field) && value !== '' && Number(value) < 0) {
+      return;
+    }
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
   };
 
@@ -55,98 +58,91 @@ const EntryFormView = ({ journals, accounts, onBack, onSaved }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex justify-between items-center pb-6 mb-8 border-b border-slate-100">
-        <div className="flex gap-3">
-          <Button onClick={handleSubmit} variant="primary" disabled={saving || !isBalanced}>{saving ? 'Posting…' : 'Post Entry'}</Button>
-        </div>
+    <div className="panel max-w-4xl mx-auto fade-in">
+      <div className="panel-head">
+        <Button onClick={handleSubmit} variant="primary" disabled={saving || !isBalanced}>{saving ? 'Posting…' : 'Post Entry'}</Button>
         <Button onClick={onBack} variant="secondary">Back</Button>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">New Manual Journal Entry</h2>
-      {errorMsg && <div className="mb-6"><Banner error={errorMsg} onDismiss={() => setErrorMsg('')} /></div>}
+      <h2 className="h2" style={{ marginBottom: '1.25rem' }}>New Journal Entry</h2>
+      {errorMsg && <div className="form-error">{errorMsg}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="flex flex-col">
-          <label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Journal *</label>
+      <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
+        <div className="field">
+          <label className="label-sm">Journal *</label>
           <select value={header.journalId} onChange={(e) => setHeader({ ...header, journalId: e.target.value })}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50/50">
-            <option value="">Select…</option>
-            {journals.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
+            className="input">
+            <option value="">Select journal…</option>
+            {journals.map((j) => <option key={j.id} value={j.id}>{j.name} ({j.code})</option>)}
           </select>
         </div>
-        <div className="flex flex-col">
-          <label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Date *</label>
-          <input type="date" value={header.date} onChange={(e) => setHeader({ ...header, date: e.target.value })}
-            className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50/50" />
+        <div className="field">
+          <label className="label-sm">Date</label>
+          <input type="date" value={header.date} onChange={(e) => setHeader({ ...header, date: e.target.value })} className="input mono" />
         </div>
-        <div className="flex flex-col">
-          <label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Reference</label>
+        <div className="field">
+          <label className="label-sm">Reference</label>
           <input type="text" value={header.reference} onChange={(e) => setHeader({ ...header, reference: e.target.value })}
-            placeholder="e.g. CAP-001" className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50/50" />
+            placeholder="e.g. Bank advice / Voucher" className="input" />
         </div>
-        <div className="flex flex-col">
-          <label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Description</label>
+        <div className="field">
+          <label className="label-sm">Description</label>
           <input type="text" value={header.description} onChange={(e) => setHeader({ ...header, description: e.target.value })}
-            placeholder="e.g. Owner Capital Addition" className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50/50" />
+            placeholder="Entry narration" className="input" />
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-base font-bold text-slate-800">Journal Lines (Debit / Credit)</h3>
-        <span className={`text-xs font-bold px-3 py-1 rounded-full ${isBalanced ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-          {isBalanced ? '✓ Balanced' : `✗ ${money(totalDebit)} / ${money(totalCredit)}`}
-        </span>
-      </div>
-
-      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
+      <h3 className="h3" style={{ marginBottom: '0.75rem' }}>Journal Lines (Debit / Credit)</h3>
+      <div className="table-wrap" style={{ marginBottom: '1rem' }}>
+        <table className="data-table compact">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Account</th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right w-40">Debit</th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-right w-40">Credit</th>
-              <th className="px-4 py-3 w-12"></th>
+              <th style={{ width: '50%' }}>Account</th>
+              <th className="t-right" style={{ width: '22%' }}>Debit</th>
+              <th className="t-right" style={{ width: '22%' }}>Credit</th>
+              <th style={{ width: '6%' }}></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {lines.map((line, idx) => (
               <tr key={idx}>
-                <td className="px-4 py-3">
-                  <select value={line.accountId} onChange={(e) => setLine(idx, 'accountId', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50/50">
+                <td>
+                  <select value={line.accountId} onChange={(e) => setLine(idx, 'accountId', e.target.value)} className="input">
                     <option value="">Select account…</option>
-                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.accountCode} — {a.accountName}</option>)}
+                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.accountCode} {a.accountName} ({a.type})</option>)}
                   </select>
                 </td>
-                <td className="px-4 py-3">
-                  <input type="number" step="0.01" min="0" value={line.debit} placeholder="0.00"
-                    onChange={(e) => setLine(idx, 'debit', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl text-right bg-slate-50/50" />
+                <td>
+                  <input type="number" min="0" step="0.1" value={line.debit} placeholder="0.00"
+                    onChange={(e) => setLine(idx, 'debit', e.target.value)} className="input mono t-right" />
                 </td>
-                <td className="px-4 py-3">
-                  <input type="number" step="0.01" min="0" value={line.credit} placeholder="0.00"
-                    onChange={(e) => setLine(idx, 'credit', e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl text-right bg-slate-50/50" />
+                <td>
+                  <input type="number" min="0" step="0.1" value={line.credit} placeholder="0.00"
+                    onChange={(e) => setLine(idx, 'credit', e.target.value)} className="input mono t-right" />
                 </td>
-                <td className="px-4 py-3 text-center">
-                  <button type="button" onClick={() => removeLine(idx)} className="text-slate-400 hover:text-red-500 font-bold">&times;</button>
+                <td className="t-center">
+                  <button type="button" onClick={() => removeLine(idx)} disabled={lines.length <= 2}
+                    className="btn-icon" title="Remove line">&times;</button>
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
+          <tfoot>
             <tr>
-              <td className="px-4 py-4 text-slate-700">Total</td>
-              <td className="px-4 py-4 text-right text-slate-900">{money(totalDebit)}</td>
-              <td className="px-4 py-4 text-right text-slate-900">{money(totalCredit)}</td>
+              <td className="t-right" style={{ fontWeight: 700 }}>Total</td>
+              <td className="t-right mono" style={{ fontWeight: 700 }}>{money(totalDebit)}</td>
+              <td className="t-right mono" style={{ fontWeight: 700 }}>{money(totalCredit)}</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <div className="mt-4">
-        <Button variant="secondary" size="sm" onClick={addLine}>+ Add Line</Button>
+
+      <div className="row-between">
+        <Button variant="secondary" onClick={addLine}>+ Add Line</Button>
+        <span className="tiny mono" style={{ fontWeight: 700, color: isBalanced ? 'var(--ok)' : 'var(--danger)' }}>
+          {isBalanced ? 'Balanced' : `Difference: ${money(Math.abs(totalDebit - totalCredit))}`}
+        </span>
       </div>
     </div>
   );
@@ -160,33 +156,35 @@ const EntryDetailView = ({ entryId, onBack }) => {
     apiFetch(`/transactions/${entryId}`).then(setEntry).catch((e) => setError(e.message));
   }, [entryId]);
 
-  if (error) return <div className="max-w-4xl mx-auto"><Banner error={error} onDismiss={() => onBack()} /></div>;
-  if (!entry) return <div className="text-center text-slate-400 py-24">Loading entry…</div>;
+  if (error) return <div className="max-w-4xl mx-auto"><Banner error={error} onDismiss={onBack} /></div>;
+  if (!entry) return <div className="loading">Loading journal entry…</div>;
 
   return (
-    <div className="max-w-4xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex justify-between items-center pb-6 mb-8 border-b border-slate-100">
-        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Journal Entry #{entry.id}</h2>
+    <div className="panel max-w-4xl mx-auto fade-in">
+      <div className="panel-head">
+        <h2 className="h2">Journal Entry #{entry.id}</h2>
         <Button onClick={onBack} variant="secondary">Back</Button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-sm">
-        <div><span className="block text-xs text-slate-400 uppercase font-bold">Journal</span>{entry.journalName}</div>
-        <div><span className="block text-xs text-slate-400 uppercase font-bold">Date</span><span className="font-mono">{entry.date}</span></div>
-        <div><span className="block text-xs text-slate-400 uppercase font-bold">Reference</span>{entry.reference || '—'}</div>
-        <div><span className="block text-xs text-slate-400 uppercase font-bold">Created By</span>{entry.createdByUsername}</div>
+
+      <div className="grid-4" style={{ marginBottom: '1.5rem', fontSize: '0.8125rem' }}>
+        <div><span className="tiny-up">Date</span><span className="mono">{entry.date}</span></div>
+        <div><span className="tiny-up">Journal</span>{entry.journalName} ({entry.journalCode})</div>
+        <div><span className="tiny-up">Reference</span><span className="mono">{entry.reference || '—'}</span></div>
+        <div><span className="tiny-up">Total</span><span className="mono" style={{ fontWeight: 700 }}>{money(entry.total)}</span></div>
       </div>
-      <p className="text-sm text-slate-600 mb-4">{entry.description || '—'}</p>
-      <div className="border border-slate-200 rounded-xl overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase text-slate-500">
-            <tr><th className="px-4 py-3">Account</th><th className="px-4 py-3 text-right">Debit</th><th className="px-4 py-3 text-right">Credit</th></tr>
+      {entry.description && <p style={{ fontSize: '0.8125rem', color: 'var(--muted)', marginBottom: '1.5rem' }}>{entry.description}</p>}
+
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr><th>Account</th><th className="t-right">Debit</th><th className="t-right">Credit</th></tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {entry.lines.map((l) => (
               <tr key={l.id}>
-                <td className="px-4 py-3"><span className="font-mono text-orange-600 font-bold">{l.accountCode}</span> — {l.accountName}</td>
-                <td className="px-4 py-3 text-right font-mono">{l.debit ? money(l.debit) : ''}</td>
-                <td className="px-4 py-3 text-right font-mono">{l.credit ? money(l.credit) : ''}</td>
+                <td><span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>{l.accountCode}</span> — {l.accountName}</td>
+                <td className="t-right mono">{l.debit ? money(l.debit) : ''}</td>
+                <td className="t-right mono">{l.credit ? money(l.credit) : ''}</td>
               </tr>
             ))}
           </tbody>
@@ -234,39 +232,39 @@ export default function JournalEntriesModule() {
   }
 
   return (
-    <ModuleShell title="Journal Entries" subtitle="The immutable ledger — every posting from invoices, payments and manual entries" error={error} onDismissError={() => setError('')}>
-      <div className="max-w-6xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-        <div className="flex justify-between items-center gap-4 mb-8">
+    <ModuleShell title="Journal Entries" subtitle="The general ledger — double-entry transactions from all sources" error={error} onDismissError={() => setError('')}>
+      <div className="panel fade-in">
+        <div className="toolbar">
           <input type="text" placeholder="Search by description, reference, journal…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full max-w-md px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/25 focus:border-orange-500 text-sm" />
+            className="input grow" style={{ maxWidth: 400 }} />
           <Button onClick={() => setActiveView('form')} variant="primary">New Entry</Button>
         </div>
 
-        <div className="overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <table className="w-full text-left border-collapse">
+        <div className="table-wrap">
+          <table className="data-table">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-4">#</th>
-                <th className="py-4 px-4">Date</th>
-                <th className="py-4 px-4">Description</th>
-                <th className="py-4 px-3">Reference</th>
-                <th className="py-4 px-3">Journal</th>
-                <th className="py-4 px-4 text-right">Total</th>
+              <tr>
+                <th style={{ width: 60 }}>#</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th>Journal</th>
+                <th className="t-right">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody>
               {pageItems.map((t) => (
-                <tr key={t.id} className="hover:bg-blue-50/40 cursor-pointer" onClick={() => { setDetailId(t.id); setActiveView('detail'); }}>
-                  <td className="py-4 px-4 font-mono text-xs text-slate-400">{t.id}</td>
-                  <td className="py-4 px-4 font-mono text-xs text-slate-600">{t.date}</td>
-                  <td className="py-4 px-4 font-semibold text-slate-900">{t.description || '—'}</td>
-                  <td className="py-4 px-3 text-slate-600 font-mono text-xs">{t.reference || '—'}</td>
-                  <td className="py-4 px-3 text-xs">{t.journalName}</td>
-                  <td className="py-4 px-4 text-right font-mono font-bold">{money(t.total)}</td>
+                <tr key={t.id} className="clickable" onClick={() => { setDetailId(t.id); setActiveView('detail'); }}>
+                  <td className="mono" style={{ color: 'var(--muted)' }}>{t.id}</td>
+                  <td className="mono" style={{ color: 'var(--muted)' }}>{t.date}</td>
+                  <td style={{ fontWeight: 650, color: 'var(--ink)' }}>{t.description || '—'}</td>
+                  <td className="mono" style={{ color: 'var(--muted)' }}>{t.reference || '—'}</td>
+                  <td><span className="pill pill-neutral">{t.journalName}</span></td>
+                  <td className="t-right mono" style={{ fontWeight: 700 }}>{money(t.total)}</td>
                 </tr>
               ))}
               {pageItems.length === 0 && (
-                <tr><td colSpan="6" className="py-12 text-center text-slate-400 font-medium">No journal entries yet.</td></tr>
+                <tr><td colSpan={6} className="empty">No journal entries found.</td></tr>
               )}
             </tbody>
           </table>

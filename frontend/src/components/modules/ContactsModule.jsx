@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch, money } from '../../lib/api';
 import { Button, Pagination, usePagedSearch, ModuleShell } from './ui';
+import '../../styles/contacts.css';
 
 // Contact schema per routes_db.md: { id, name, type, email, mobile, city, state, pincode, profileImage, isArchived }
 // type: "customer" | "vendor" | "both"  — required fields for create: name, type
@@ -40,127 +41,203 @@ const ContactFormView = ({ initialData, invoices = [], payments = [], onBack, on
   };
 
   return (
-    <div className="max-w-5xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex justify-between items-center pb-6 mb-8 border-b border-slate-100">
-        <div className="flex gap-3">
+    <div className="cm-container fade-in">
+      <div className="cm-header-bar">
+        <div className="cm-action-group">
           <Button onClick={() => { setFormData(EMPTY_CONTACT); setImagePreview(null); setErrorMsg(''); if (onNew) onNew(); }} variant="secondary">New</Button>
           <Button onClick={handleConfirmSubmit} variant="primary">Confirm</Button>
         </div>
         <Button onClick={onBack} variant="secondary">Back</Button>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+      <div className="cm-header-title-row">
+        <h2 className="cm-title">
           {formData.id ? `Edit Contact: ${formData.name}` : 'Create Contact Master'}
         </h2>
         {formData.id && (
-          <div className="flex gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-            <button type="button" onClick={() => setActiveSubTab('details')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${activeSubTab === 'details' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+          <div className="cm-tab-bar">
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('details')}
+              className={`cm-tab-btn ${activeSubTab === 'details' ? 'cm-tab-btn-active' : ''}`}
+            >
               Contact Details
             </button>
-            <button type="button" onClick={() => setActiveSubTab('invoices')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${activeSubTab === 'invoices' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
-              Documents <span className="px-1.5 bg-indigo-50 text-indigo-700 rounded-full font-mono text-[10px]">{invoices.length}</span>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('invoices')}
+              className={`cm-tab-btn ${activeSubTab === 'invoices' ? 'cm-tab-btn-active' : ''}`}
+            >
+              Documents <span className="cm-tab-badge">{invoices.length}</span>
             </button>
-            <button type="button" onClick={() => setActiveSubTab('payments')}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${activeSubTab === 'payments' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
-              Payments <span className="px-1.5 bg-emerald-50 text-emerald-700 rounded-full font-mono text-[10px]">{payments.length}</span>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('payments')}
+              className={`cm-tab-btn ${activeSubTab === 'payments' ? 'cm-tab-btn-active' : ''}`}
+            >
+              Payments <span className="cm-tab-badge">{payments.length}</span>
             </button>
           </div>
         )}
       </div>
 
       {errorMsg && (
-        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg font-medium shadow-sm">⚠️ {errorMsg}</div>
+        <div className="cm-error-banner">{errorMsg}</div>
       )}
 
       {activeSubTab === 'details' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          <div className="col-span-2 space-y-6">
-            <div className="flex items-baseline">
-              <label className="w-36 font-semibold text-slate-700 text-sm">Contact Name</label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Nimesh Pathak" className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium" />
+        <div className="cm-form-grid">
+          <div className="cm-form-section">
+            <div className="cm-form-field">
+              <label className="cm-label">Contact Name</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="e.g. Nimesh Pathak"
+                className="cm-input"
+              />
             </div>
-            <div className="flex items-baseline">
-              <label className="w-36 font-semibold text-slate-700 text-sm">Type</label>
-              <select name="type" value={formData.type} onChange={handleChange} className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium cursor-pointer">
+            <div className="cm-form-field">
+              <label className="cm-label">Type</label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className="cm-input cm-select"
+              >
                 <option value="customer">Customer</option>
                 <option value="vendor">Vendor</option>
                 <option value="both">Both</option>
               </select>
             </div>
-            <div className="flex items-baseline">
-              <label className="w-36 font-semibold text-slate-700 text-sm">Email</label>
-              <input type="email" name="email" value={formData.email || ''} onChange={handleChange} placeholder="name@example.com" className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium" />
+            <div className="cm-form-field">
+              <label className="cm-label">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email || ''}
+                onChange={handleChange}
+                placeholder="name@example.com"
+                className="cm-input"
+              />
             </div>
-            <div className="flex items-baseline">
-              <label className="w-36 font-semibold text-slate-700 text-sm">Mobile</label>
-              <input type="text" name="mobile" value={formData.mobile || ''} onChange={handleChange} placeholder="+91 9090090909" className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium" />
+            <div className="cm-form-field">
+              <label className="cm-label">Mobile</label>
+              <input
+                type="text"
+                name="mobile"
+                value={formData.mobile || ''}
+                onChange={handleChange}
+                placeholder="+91 9090090909"
+                className="cm-input"
+              />
             </div>
-            <div className="pt-6 border-t border-slate-100">
-              <label className="block font-bold text-slate-800 mb-4 text-sm tracking-wide uppercase">Address</label>
-              <div className="space-y-4 pl-3 border-l-2 border-blue-100">
-                <input type="text" name="city" value={formData.city || ''} onChange={handleChange} placeholder="City" className="w-full user-underline-input py-1 bg-transparent text-sm text-slate-800" />
-                <input type="text" name="state" value={formData.state || ''} onChange={handleChange} placeholder="State" className="w-full user-underline-input py-1 bg-transparent text-sm text-slate-800" />
-                <input type="text" name="pincode" value={formData.pincode || ''} onChange={handleChange} placeholder="Pincode" className="w-full user-underline-input py-1 bg-transparent text-sm text-slate-800" />
+            <div className="cm-address-box">
+              <label className="cm-address-title">Address</label>
+              <div className="cm-address-inputs">
+                <input
+                  type="text"
+                  name="city"
+                  value={formData.city || ''}
+                  onChange={handleChange}
+                  placeholder="City"
+                  className="cm-input"
+                />
+                <input
+                  type="text"
+                  name="state"
+                  value={formData.state || ''}
+                  onChange={handleChange}
+                  placeholder="State"
+                  className="cm-input"
+                />
+                <input
+                  type="text"
+                  name="pincode"
+                  value={formData.pincode || ''}
+                  onChange={handleChange}
+                  placeholder="Pincode"
+                  className="cm-input"
+                />
               </div>
             </div>
           </div>
 
-          <div className="col-span-1 flex flex-col items-center justify-start border-l border-slate-100 pl-8">
-            <div className="w-52 h-52 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center bg-slate-50/50 hover:border-blue-400 transition-all cursor-pointer relative overflow-hidden group">
+          <div className="cm-avatar-col">
+            <div className="cm-avatar-uploader">
               {imagePreview ? (
-                <img src={imagePreview} alt="Contact Avatar" className="w-full h-full object-cover" />
+                <img src={imagePreview} alt="Contact Avatar" className="cm-avatar-preview" />
               ) : (
-                <div className="text-center p-4">
-                  <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-100/60 text-orange-600 flex items-center justify-center font-bold text-lg">&#8682;</div>
-                  <span className="text-sm font-semibold text-slate-600 group-hover:text-orange-600">Upload Image</span>
-                  <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                <div className="cm-avatar-placeholder">
+                  <div className="cm-upload-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <span className="cm-upload-text">Upload Image</span>
+                  <p className="cm-upload-hint">PNG, JPG up to 5MB</p>
                 </div>
               )}
-              <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <input type="file" accept="image/*" onChange={handleImageChange} className="cm-file-input" />
             </div>
             {imagePreview && (
-              <button onClick={() => { setImagePreview(null); setFormData((prev) => ({ ...prev, profileImage: null })); }} className="mt-3 text-xs text-red-500 font-medium hover:underline">Remove Image</button>
+              <button
+                type="button"
+                onClick={() => { setImagePreview(null); setFormData((prev) => ({ ...prev, profileImage: null })); }}
+                className="cm-remove-img-btn"
+              >
+                Remove Image
+              </button>
             )}
           </div>
         </div>
       )}
 
       {activeSubTab === 'invoices' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-slate-500">Documents chained to <strong>{formData.name}</strong>:</p>
-            <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
+        <div>
+          <div className="cm-tab-summary-bar">
+            <p>Documents attached to <strong>{formData.name}</strong>:</p>
+            <span className="cm-summary-badge">
               Total: {money(invoices.reduce((s, i) => s + Number(i.totalAmount || 0), 0))}
             </span>
           </div>
-          <div className="overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm">
-            <table className="w-full text-left border-collapse text-sm">
+          <div className="cm-table-container">
+            <table className="cm-table">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase">
-                  <th className="py-3 px-4">Doc #</th><th className="py-3 px-4">Kind</th><th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Due Date</th><th className="py-3 px-4 text-right">Total</th>
-                  <th className="py-3 px-4 text-right">Paid</th><th className="py-3 px-4 text-right">Balance Due</th>
-                  <th className="py-3 px-4 text-center">Status</th>
+                <tr>
+                  <th>Doc #</th>
+                  <th>Kind</th>
+                  <th>Date</th>
+                  <th>Due Date</th>
+                  <th className="cm-text-right">Total</th>
+                  <th className="cm-text-right">Paid</th>
+                  <th className="cm-text-right">Balance Due</th>
+                  <th className="cm-text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-indigo-50/30">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">{inv.kind === 'bill' ? 'BILL' : 'INV'}-{inv.id}</td>
-                    <td className="py-3 px-4 capitalize text-xs">{inv.kind}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono text-xs">{inv.date}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono text-xs">{inv.dueDate || '—'}</td>
-                    <td className="py-3 px-4 text-right font-mono font-semibold">{money(inv.totalAmount)}</td>
-                    <td className="py-3 px-4 text-right font-mono text-emerald-600">{money(inv.paid || 0)}</td>
-                    <td className="py-3 px-4 text-right font-mono text-amber-600 font-bold">{money(inv.balanceDue || 0)}</td>
-                    <td className="py-3 px-4 text-center text-xs font-bold capitalize">{inv.status}</td>
+                  <tr key={inv.id} className="cm-table-row">
+                    <td className="cm-td-doc-id">{inv.kind === 'bill' ? 'BILL' : 'INV'}-{inv.id}</td>
+                    <td style={{ textTransform: 'capitalize', fontSize: '12px' }}>{inv.kind}</td>
+                    <td className="cm-mono" style={{ fontSize: '12px', color: 'var(--muted)' }}>{inv.date}</td>
+                    <td className="cm-mono" style={{ fontSize: '12px', color: 'var(--muted)' }}>{inv.dueDate || '—'}</td>
+                    <td className="cm-text-right cm-mono cm-font-bold">{money(inv.totalAmount)}</td>
+                    <td className="cm-text-right cm-mono cm-text-emerald">{money(inv.paid || 0)}</td>
+                    <td className="cm-text-right cm-mono cm-text-amber cm-font-bold">{money(inv.balanceDue || 0)}</td>
+                    <td className="cm-text-center" style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 650 }}>{inv.status}</td>
                   </tr>
                 ))}
                 {invoices.length === 0 && (
-                  <tr><td colSpan="8" className="py-8 text-center text-slate-400">No documents attached to this contact.</td></tr>
+                  <tr>
+                    <td colSpan="8" className="cm-text-center" style={{ padding: '32px', color: '#94a3b8' }}>
+                      No documents attached to this contact.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -169,34 +246,42 @@ const ContactFormView = ({ initialData, invoices = [], payments = [], onBack, on
       )}
 
       {activeSubTab === 'payments' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-slate-500">Payment records for <strong>{formData.name}</strong>:</p>
-            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+        <div>
+          <div className="cm-tab-summary-bar">
+            <p>Payment records for <strong>{formData.name}</strong>:</p>
+            <span className="cm-summary-badge">
               Total Paid: {money(payments.reduce((s, p) => s + Number(p.amount || 0), 0))}
             </span>
           </div>
-          <div className="overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm">
-            <table className="w-full text-left border-collapse text-sm">
+          <div className="cm-table-container">
+            <table className="cm-table">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase">
-                  <th className="py-3 px-4">Payment #</th><th className="py-3 px-4">Doc #</th><th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Method</th><th className="py-3 px-4">Journal</th><th className="py-3 px-4 text-right">Amount</th>
+                <tr>
+                  <th>Payment #</th>
+                  <th>Doc #</th>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Journal</th>
+                  <th className="cm-text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {payments.map((pay) => (
-                  <tr key={pay.id} className="hover:bg-emerald-50/30">
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-700">PAY-{pay.id}</td>
-                    <td className="py-3 px-4 font-mono text-indigo-700">DOC-{pay.invoiceId}</td>
-                    <td className="py-3 px-4 text-slate-600 font-mono text-xs">{pay.date}</td>
-                    <td className="py-3 px-4 capitalize font-semibold text-xs">{pay.method}</td>
-                    <td className="py-3 px-4 text-slate-500 text-xs">{pay.journalName || `J-${pay.journalId}`}</td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">{money(pay.amount)}</td>
+                  <tr key={pay.id} className="cm-table-row">
+                    <td className="cm-td-pay-id">PAY-{pay.id}</td>
+                    <td className="cm-td-doc-id">DOC-{pay.invoiceId}</td>
+                    <td className="cm-mono" style={{ fontSize: '12px', color: 'var(--muted)' }}>{pay.date}</td>
+                    <td className="cm-font-bold" style={{ textTransform: 'capitalize', fontSize: '12px' }}>{pay.method}</td>
+                    <td style={{ fontSize: '12px', color: 'var(--muted)' }}>{pay.journalName || `J-${pay.journalId}`}</td>
+                    <td className="cm-text-right cm-mono cm-font-bold cm-text-emerald">{money(pay.amount)}</td>
                   </tr>
                 ))}
                 {payments.length === 0 && (
-                  <tr><td colSpan="6" className="py-8 text-center text-slate-400">No payment records found for this contact.</td></tr>
+                  <tr>
+                    <td colSpan="6" className="cm-text-center" style={{ padding: '32px', color: '#94a3b8' }}>
+                      No payment records found for this contact.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -213,81 +298,103 @@ const ContactListView = ({ contacts, contactInvoicesMap = {}, contactPaymentsMap
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="max-w-6xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="flex items-center gap-3 w-full sm:w-2/3">
-          <Button onClick={onNew} variant="primary">New</Button>
-          <input type="text" placeholder="Search contacts…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/25 focus:border-orange-500 text-sm" />
+    <div className="cm-container fade-in">
+      <div className="cm-toolbar">
+        <div className="cm-toolbar-left">
+          <Button onClick={onNew} variant="primary">New Contact</Button>
+          <input
+            type="text"
+            placeholder="Search contacts…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="cm-input cm-search-input"
+          />
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <Button variant="secondary" className="!px-3 !py-1.5"><span className="text-base">&#9776;</span> List</Button>
-            <Button variant="ghost" onClick={onSwitchToKanban} className="!px-3 !py-1.5"><span className="text-base">&#8862;</span> Kanban</Button>
-          </div>
+        <div className="cm-view-toggle">
+          <Button variant="secondary" className="btn-sm">List</Button>
+          <Button variant="ghost" onClick={onSwitchToKanban} className="btn-sm">Kanban</Button>
         </div>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">Contact Master List</h2>
-      <div className="overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="cm-table-container">
+        <table className="cm-table">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
-              <th className="py-4 px-3 w-12 text-center">#</th>
-              <th className="py-4 px-3 w-16">Avatar</th>
-              <th className="py-4 px-4">Contact Name</th>
-              <th className="py-4 px-3">Type</th>
-              <th className="py-4 px-4">Email</th>
-              <th className="py-4 px-3">Mobile</th>
-              <th className="py-4 px-4 text-center">Documents</th>
-              <th className="py-4 px-4 text-center">Payments</th>
-              {isAdmin && <th className="py-4 px-3 text-center">Actions</th>}
+            <tr>
+              <th className="cm-text-center" style={{ width: '48px' }}>#</th>
+              <th style={{ width: '48px' }}>Avatar</th>
+              <th>Contact Name</th>
+              <th>Type</th>
+              <th>Email</th>
+              <th>Mobile</th>
+              <th className="cm-text-center">Documents</th>
+              <th className="cm-text-center">Payments</th>
+              {isAdmin && <th className="cm-text-center">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-sm">
+          <tbody>
             {pageItems.map((contact) => {
               const invData = contactInvoicesMap[contact.id] || { count: 0, totalAmount: 0 };
               const payData = contactPaymentsMap[contact.id] || { count: 0, totalAmount: 0 };
               return (
-                <tr key={contact.id} className="hover:bg-blue-50/40 cursor-pointer group transition-colors">
-                  <td className="py-4 px-3 text-center font-mono text-xs text-slate-400">{contact.id}</td>
-                  <td className="py-4 px-3">
-                    <div className="w-9 h-9 rounded-full bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center font-bold text-slate-500">
-                      {contact.profileImage ? <img src={contact.profileImage} alt="" className="w-full h-full object-cover" /> : contact.name.charAt(0).toUpperCase()}
+                <tr key={contact.id} className="cm-table-row" onClick={() => onSelectRow(contact)}>
+                  <td className="cm-td-id">{contact.id}</td>
+                  <td>
+                    <div className="cm-avatar-thumb">
+                      {contact.profileImage ? (
+                        <img src={contact.profileImage} alt="" />
+                      ) : (
+                        contact.name.charAt(0).toUpperCase()
+                      )}
                     </div>
                   </td>
-                  <td className="py-4 px-4 font-bold text-slate-900 group-hover:text-orange-600" onClick={() => onSelectRow(contact)}>
-                    {contact.name}
-                    {contact.city && <span className="block text-xs font-normal text-slate-400">{contact.city}{contact.state ? `, ${contact.state}` : ''}</span>}
+                  <td>
+                    <span className="cm-contact-name">{contact.name}</span>
+                    {contact.city && (
+                      <span className="cm-contact-subtext">
+                        {contact.city}{contact.state ? `, ${contact.state}` : ''}
+                      </span>
+                    )}
                   </td>
-                  <td className="py-4 px-3">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${contact.type === 'customer' ? 'bg-sky-50 text-sky-700 border border-sky-200' : contact.type === 'vendor' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}`}>
+                  <td>
+                    <span className={`cm-type-badge ${contact.type === 'customer' ? 'cm-type-customer' : contact.type === 'vendor' ? 'cm-type-vendor' : 'cm-type-both'}`}>
                       {contact.type}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-slate-600">{contact.email || '—'}</td>
-                  <td className="py-4 px-3 text-slate-600 font-mono text-xs">{contact.mobile || '—'}</td>
-                  <td className="py-4 px-4 text-center">
+                  <td style={{ color: 'var(--ink-secondary)' }}>{contact.email || '—'}</td>
+                  <td className="cm-mono" style={{ fontSize: '12px', color: 'var(--muted)' }}>{contact.mobile || '—'}</td>
+                  <td className="cm-text-center">
                     {invData.count > 0 ? (
-                      <span className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                      <span className="cm-count-badge">
                         {invData.count} • {money(invData.totalAmount)}
                       </span>
-                    ) : <span className="text-xs text-slate-300 font-medium">0</span>}
+                    ) : <span className="cm-empty-cell">0</span>}
                   </td>
-                  <td className="py-4 px-4 text-center">
+                  <td className="cm-text-center">
                     {payData.count > 0 ? (
-                      <span className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      <span className="cm-count-badge" style={{ color: 'var(--ok)' }}>
                         {payData.count} • {money(payData.totalAmount)}
                       </span>
-                    ) : <span className="text-xs text-slate-300 font-medium">0</span>}
+                    ) : <span className="cm-empty-cell">0</span>}
                   </td>
                   {isAdmin && (
-                    <td className="py-4 px-3 text-center">
-                      <div className="flex gap-2 justify-center items-center">
-                        <button onClick={(e) => { e.stopPropagation(); onArchive(contact); }} className="p-1 rounded hover:bg-slate-100 text-sm" title={contact.isArchived ? 'Unarchive' : 'Archive'}>
-                          {contact.isArchived ? '📂' : '📁'}
+                    <td className="cm-text-center" onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => onArchive(contact)}
+                          className="btn btn-secondary btn-sm"
+                          title={contact.isArchived ? 'Unarchive' : 'Archive'}
+                        >
+                          {contact.isArchived ? 'Unarchive' : 'Archive'}
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(contact); }} className="p-1 rounded hover:bg-red-50 text-sm" title="Delete">🗑️</button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete(contact)}
+                          className="btn btn-danger btn-sm"
+                          title="Delete"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   )}
@@ -295,7 +402,11 @@ const ContactListView = ({ contacts, contactInvoicesMap = {}, contactPaymentsMap
               );
             })}
             {pageItems.length === 0 && (
-              <tr><td colSpan={isAdmin ? 9 : 8} className="py-12 text-center text-slate-400 font-medium">No contacts found matching search filter.</td></tr>
+              <tr>
+                <td colSpan={isAdmin ? 9 : 8} className="cm-text-center" style={{ padding: '40px', color: '#94a3b8', fontWeight: 500 }}>
+                  No contacts found matching search filter.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -310,31 +421,41 @@ const ContactKanbanView = ({ contacts, onNew, onSwitchToList, onSelectCard }) =>
     (c, q) => c.name.toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q));
 
   return (
-    <div className="max-w-5xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-        <div className="flex items-center gap-3 w-full sm:w-2/3">
-          <Button onClick={onNew} variant="primary">New</Button>
-          <input type="text" placeholder="Search cards…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/25 focus:border-orange-500 text-sm" />
+    <div className="cm-container fade-in">
+      <div className="cm-toolbar">
+        <div className="cm-toolbar-left">
+          <Button onClick={onNew} variant="primary">New Contact</Button>
+          <input
+            type="text"
+            placeholder="Search cards…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="cm-input cm-search-input"
+          />
         </div>
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <Button variant="ghost" onClick={onSwitchToList} className="!px-3 !py-1.5"><span className="text-base">&#9776;</span> List</Button>
-          <Button variant="secondary" className="!px-3 !py-1.5"><span className="text-base">&#8862;</span> Kanban</Button>
+        <div className="cm-view-toggle">
+          <Button variant="ghost" onClick={onSwitchToList} className="btn-sm">List</Button>
+          <Button variant="secondary" className="btn-sm">Kanban</Button>
         </div>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">Contact Kanban View</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="cm-kanban-grid">
         {pageItems.map((contact) => (
-          <div key={contact.id} onClick={() => onSelectCard(contact)} className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl hover:border-blue-400 transition-all cursor-pointer transform hover:-translate-y-1 flex items-center gap-4 group">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden border flex-shrink-0 flex items-center justify-center font-bold text-xl text-slate-400">
-              {contact.profileImage ? <img src={contact.profileImage} alt="" className="w-full h-full object-cover" /> : contact.name.charAt(0).toUpperCase()}
+          <div key={contact.id} onClick={() => onSelectCard(contact)} className="cm-kanban-card">
+            <div className="cm-kanban-avatar">
+              {contact.profileImage ? (
+                <img src={contact.profileImage} alt="" />
+              ) : (
+                contact.name.charAt(0).toUpperCase()
+              )}
             </div>
-            <div className="overflow-hidden">
-              <h3 className="font-extrabold text-slate-900 truncate group-hover:text-orange-600 text-base">{contact.name}</h3>
-              <p className="text-xs text-slate-500 truncate font-medium mt-0.5">{contact.email || '—'}</p>
-              <p className="text-xs text-slate-500 font-mono mt-1">{contact.mobile || '—'}</p>
-              <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold capitalize bg-slate-100 text-slate-700">{contact.type}</span>
+            <div className="cm-kanban-info">
+              <h3 className="cm-kanban-name">{contact.name}</h3>
+              <p className="cm-kanban-detail">{contact.email || '—'}</p>
+              <p className="cm-kanban-detail mono">{contact.mobile || '—'}</p>
+              <span className={`cm-type-badge ${contact.type === 'customer' ? 'cm-type-customer' : contact.type === 'vendor' ? 'cm-type-vendor' : 'cm-type-both'}`} style={{ marginTop: '6px' }}>
+                {contact.type}
+              </span>
             </div>
           </div>
         ))}
@@ -366,22 +487,22 @@ export default function ContactsModule({ user }) {
       apiFetch('/payments').catch(() => []),
     ]);
     const invMap = {};
-      (invs || []).forEach((inv) => {
-        if (!invMap[inv.contactId]) invMap[inv.contactId] = { count: 0, totalAmount: 0, list: [] };
-        invMap[inv.contactId].count += 1;
-        invMap[inv.contactId].totalAmount += Number(inv.totalAmount || 0);
-        invMap[inv.contactId].list.push(inv);
-      });
-      setContactInvoicesMap(invMap);
+    (invs || []).forEach((inv) => {
+      if (!invMap[inv.contactId]) invMap[inv.contactId] = { count: 0, totalAmount: 0, list: [] };
+      invMap[inv.contactId].count += 1;
+      invMap[inv.contactId].totalAmount += Number(inv.totalAmount || 0);
+      invMap[inv.contactId].list.push(inv);
+    });
+    setContactInvoicesMap(invMap);
 
-      const payMap = {};
-      (pays || []).forEach((p) => {
-        if (!payMap[p.contactId]) payMap[p.contactId] = { count: 0, totalAmount: 0, list: [] };
-        payMap[p.contactId].count += 1;
-        payMap[p.contactId].totalAmount += Number(p.amount || 0);
-        payMap[p.contactId].list.push(p);
-      });
-      setContactPaymentsMap(payMap);
+    const payMap = {};
+    (pays || []).forEach((p) => {
+      if (!payMap[p.contactId]) payMap[p.contactId] = { count: 0, totalAmount: 0, list: [] };
+      payMap[p.contactId].count += 1;
+      payMap[p.contactId].totalAmount += Number(p.amount || 0);
+      payMap[p.contactId].list.push(p);
+    });
+    setContactPaymentsMap(payMap);
   }, []);
 
   useEffect(() => { loadContacts(); loadLinkedFinancials(); }, [loadContacts, loadLinkedFinancials]);
@@ -424,7 +545,7 @@ export default function ContactsModule({ user }) {
   };
 
   return (
-    <ModuleShell title="Users & Contact Master" subtitle="Customers, vendors and dual-role partners" error={error} onDismissError={() => setError('')}>
+    <ModuleShell title="Contacts Master" subtitle="Customers, vendors and business partners" error={error} onDismissError={() => setError('')}>
       {activeView === 'form' && (
         <ContactFormView
           initialData={editingContact}

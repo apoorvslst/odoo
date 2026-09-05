@@ -24,40 +24,37 @@ const AccountFormView = ({ initialData, onBack, onSave }) => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-      <div className="flex justify-between items-center pb-6 mb-8 border-b border-slate-100">
-        <div className="flex gap-3">
-          <Button onClick={handleSubmit} variant="primary">Confirm</Button>
-        </div>
+    <div className="panel max-w-3xl mx-auto fade-in">
+      <div className="panel-head">
+        <Button onClick={handleSubmit} variant="primary">Confirm</Button>
         <Button onClick={onBack} variant="secondary">Back</Button>
       </div>
 
-      <h2 className="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight">
+      <h2 className="h2" style={{ marginBottom: '1.25rem' }}>
         {initialData ? `Edit Account: ${initialData.accountName}` : 'New Chart of Account'}
       </h2>
-      {errorMsg && <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg">⚠️ {errorMsg}</div>}
+      {errorMsg && <div className="form-error">{errorMsg}</div>}
 
-      <div className="space-y-6">
-        <div className="flex items-baseline">
-          <label className="w-40 font-bold text-orange-600 text-sm">Account Code</label>
+      <div className="stack" style={{ gap: '1.25rem' }}>
+        <div className="form-row">
+          <label className="form-label">Account Code</label>
           <input type="text" name="accountCode" value={formData.accountCode} onChange={handleChange}
             placeholder="e.g. 1020" disabled={Boolean(initialData)}
-            className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium disabled:text-slate-400" />
+            className="input mono" />
         </div>
-        <div className="flex items-baseline">
-          <label className="w-40 font-bold text-orange-600 text-sm">Account Name</label>
+        <div className="form-row">
+          <label className="form-label">Account Name</label>
           <input type="text" name="accountName" value={formData.accountName} onChange={handleChange}
             placeholder="e.g. Petty Cash"
-            className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium" />
+            className="input" />
         </div>
-        <div className="flex items-baseline">
-          <label className="w-40 font-bold text-orange-600 text-sm">Type</label>
-          <select name="type" value={formData.type} onChange={handleChange}
-            className="flex-1 user-underline-input py-1.5 bg-transparent text-slate-900 font-medium cursor-pointer">
+        <div className="form-row">
+          <label className="form-label">Type</label>
+          <select name="type" value={formData.type} onChange={handleChange} className="input">
             {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="tiny">
           Normal balance: Debit for Asset/Expense, Credit for Liability/Income/Capital.
           The type cannot be changed once the account has ledger activity.
         </p>
@@ -126,71 +123,73 @@ export default function AccountsModule({ user }) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <ModuleShell title="Chart of Accounts" subtitle="Master ledger classification — the buckets every transaction lands in" error={error} onDismissError={() => setError('')}>
+    <ModuleShell title="Chart of Accounts" subtitle="Master ledger classification and account definitions" error={error} onDismissError={() => setError('')}>
       {activeView === 'form' ? (
         <AccountFormView initialData={editingAccount} onBack={() => setActiveView('list')} onSave={handleSave} />
       ) : (
-        <div className="max-w-6xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-            <div className="flex items-center gap-3 w-full sm:w-2/3">
+        <div className="panel fade-in">
+          <div className="toolbar">
+            <div className="cluster grow" style={{ maxWidth: 500 }}>
               <Button onClick={() => { setEditingAccount(null); setActiveView('form'); }} variant="primary">New Account</Button>
               <input type="text" placeholder="Search accounts…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/25 focus:border-orange-500 text-sm" />
+                className="input grow" />
             </div>
-            <div className="flex items-center gap-3">
-              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white cursor-pointer">
-                <option value="">All types</option>
+            <div className="cluster">
+              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="input" style={{ width: 'auto' }}>
+                <option value="">All Types</option>
                 {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
-              <label className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold cursor-pointer">
+              <label className="check-row">
                 <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-                Archived
+                Show Archived
               </label>
             </div>
           </div>
 
-          <div className="overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
-            <table className="w-full text-left border-collapse">
+          <div className="table-wrap">
+            <table className="data-table">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                  <th className="py-4 px-4">Code</th>
-                  <th className="py-4 px-4">Account Name</th>
-                  <th className="py-4 px-3">Type</th>
-                  <th className="py-4 px-4 text-right">Balance</th>
-                  <th className="py-4 px-3 text-center">Status</th>
-                  <th className="py-4 px-3 text-center">Actions</th>
+                <tr>
+                  <th style={{ width: 100 }}>Code</th>
+                  <th>Account Name</th>
+                  <th>Type</th>
+                  <th className="t-right">Balance</th>
+                  <th className="t-center">Status</th>
+                  <th className="t-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody>
                 {pageItems.map((account) => (
-                  <tr key={account.id} className="hover:bg-blue-50/40 cursor-pointer group" onClick={() => { setEditingAccount(account); setActiveView('form'); }}>
-                    <td className="py-4 px-4 font-mono font-bold text-orange-600">{account.accountCode}</td>
-                    <td className="py-4 px-4 font-bold text-slate-900 group-hover:text-orange-600">{account.accountName}</td>
-                    <td className="py-4 px-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">{account.type}</span>
+                  <tr key={account.id} className="clickable" onClick={() => { setEditingAccount(account); setActiveView('form'); }}>
+                    <td className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>{account.accountCode}</td>
+                    <td style={{ fontWeight: 650, color: 'var(--ink)' }}>{account.accountName}</td>
+                    <td>
+                      <span className="pill pill-neutral">{account.type}</span>
                     </td>
-                    <td className="py-4 px-4 text-right font-mono font-bold text-slate-900">
+                    <td className="t-right mono" style={{ fontWeight: 650, color: 'var(--ink)' }}>
                       ₹{Number(account.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="py-4 px-3 text-center">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${account.isArchived ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'}`}>
+                    <td className="t-center">
+                      <span className={`pill ${account.isArchived ? 'pill-default' : 'pill-paid'}`}>
                         {account.isArchived ? 'Archived' : 'Active'}
                       </span>
                     </td>
-                    <td className="py-4 px-3 text-center">
+                    <td className="t-center" onClick={(e) => e.stopPropagation()}>
                       {isAdmin && (
-                        <div className="flex gap-2 justify-center">
-                          <button onClick={(e) => { e.stopPropagation(); handleArchive(account); }} className="p-1 rounded hover:bg-slate-100 text-sm" title={account.isArchived ? 'Unarchive' : 'Archive'}>
-                            {account.isArchived ? '📂' : '📁'}
+                        <div className="cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                          <button type="button" onClick={() => handleArchive(account)} className="btn btn-secondary btn-sm" title={account.isArchived ? 'Unarchive' : 'Archive'}>
+                            {account.isArchived ? 'Unarchive' : 'Archive'}
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(account); }} className="p-1 rounded hover:bg-red-50 text-sm" title="Delete">🗑️</button>
+                          <button type="button" onClick={() => handleDelete(account)} className="btn btn-danger btn-sm" title="Delete">
+                            Delete
+                          </button>
                         </div>
                       )}
                     </td>
                   </tr>
                 ))}
                 {pageItems.length === 0 && (
-                  <tr><td colSpan="6" className="py-12 text-center text-slate-400 font-medium">No accounts found.</td></tr>
+                  <tr><td colSpan={6} className="empty">No accounts found.</td></tr>
                 )}
               </tbody>
             </table>

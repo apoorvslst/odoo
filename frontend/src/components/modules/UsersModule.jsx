@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../lib/api';
-import { Button, ModuleShell } from './ui';
+import { Button, ModuleShell, StatusPill } from './ui';
 
 // Admin-only user management: GET/POST /api/auth/users.
 // Contact-role users REQUIRE a contactId linking them to a contacts row.
@@ -54,94 +54,87 @@ export default function UsersModule() {
     setSaving(false);
   };
 
-  const roleBadge = (role) => ({
-    admin: 'bg-red-50 text-red-700 border border-red-200',
-    accountant: 'bg-sky-50 text-sky-700 border border-sky-200',
-    contact: 'bg-purple-50 text-purple-700 border border-purple-200',
-  }[role] || 'bg-slate-100 text-slate-700');
-
   return (
-    <ModuleShell title="User Management" subtitle="Admin only — provision back-office and portal users" error={error} onDismissError={() => setError('')}>
-      <div className="max-w-5xl mx-auto card card-lg p-6 sm:p-8 animate-fade-in">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">System Users</h2>
+    <ModuleShell title="User Management" subtitle="Provision administrative, accounting, and portal accounts" error={error} onDismissError={() => setError('')}>
+      <div className="panel fade-in">
+        <div className="toolbar">
+          <div className="grow" />
           <Button onClick={() => setShowForm(!showForm)} variant={showForm ? 'secondary' : 'primary'}>
             {showForm ? 'Cancel' : 'Create User'}
           </Button>
         </div>
 
         {showForm && (
-          <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
-            {formError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">⚠️ {formError}</div>}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex flex-col">
-                <label className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Username *</label>
+          <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem', background: 'var(--bg)' }}>
+            {formError && <div className="form-error">{formError}</div>}
+            <div className="grid-4" style={{ marginBottom: '1rem' }}>
+              <div className="field">
+                <label className="label-sm">Username *</label>
                 <input type="text" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white" />
+                  className="input" />
               </div>
-              <div className="flex flex-col">
-                <label className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Email *</label>
+              <div className="field">
+                <label className="label-sm">Email *</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white" />
+                  className="input" />
               </div>
-              <div className="flex flex-col">
-                <label className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Password *</label>
+              <div className="field">
+                <label className="label-sm">Password *</label>
                 <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white" />
+                  className="input" />
               </div>
-              <div className="flex flex-col">
-                <label className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Role</label>
+              <div className="field">
+                <label className="label-sm">Role</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white cursor-pointer">
+                  className="input">
                   {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
             {form.role === 'contact' && (
-              <div className="flex flex-col max-w-sm">
-                <label className="mb-1 text-xs font-bold uppercase tracking-wider text-slate-500">Linked Contact *</label>
+              <div className="field" style={{ maxWidth: 320, marginBottom: '1rem' }}>
+                <label className="label-sm">Linked Contact *</label>
                 <select value={form.contactId} onChange={(e) => setForm({ ...form, contactId: e.target.value })}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white cursor-pointer">
+                  className="input">
                   <option value="">Select contact…</option>
                   {contacts.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
                 </select>
-                <p className="text-xs text-slate-400 mt-1">Portal users only see documents of this contact.</p>
               </div>
             )}
-            <div className="flex justify-end">
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
               <Button onClick={handleSubmit} variant="primary" disabled={saving}>{saving ? 'Creating…' : 'Create User'}</Button>
             </div>
           </div>
         )}
 
-        <div className="overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <table className="w-full text-left border-collapse">
+        <div className="table-wrap">
+          <table className="data-table">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-4">#</th>
-                <th className="py-4 px-4">Username</th>
-                <th className="py-4 px-4">Email</th>
-                <th className="py-4 px-3">Role</th>
-                <th className="py-4 px-3">Linked Contact</th>
+              <tr>
+                <th style={{ width: 60 }}>#</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Linked Contact</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody>
               {users.map((u) => {
                 const contact = contacts.find((c) => c.id === u.contactId);
                 return (
-                  <tr key={u.id} className="hover:bg-blue-50/40">
-                    <td className="py-4 px-4 font-mono text-xs text-slate-400">{u.id}</td>
-                    <td className="py-4 px-4 font-bold text-slate-900">{u.username}</td>
-                    <td className="py-4 px-4 text-slate-600">{u.email}</td>
-                    <td className="py-4 px-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${roleBadge(u.role)}`}>{u.role}</span>
+                  <tr key={u.id}>
+                    <td className="mono" style={{ color: 'var(--muted)' }}>{u.id}</td>
+                    <td style={{ fontWeight: 650, color: 'var(--ink)' }}>{u.username}</td>
+                    <td style={{ color: 'var(--ink-secondary)' }}>{u.email}</td>
+                    <td>
+                      <StatusPill status={u.role} />
                     </td>
-                    <td className="py-4 px-3 text-slate-600 text-xs">{u.contactId ? `#${u.contactId} — ${contact ? contact.name : ''}` : '—'}</td>
+                    <td style={{ color: 'var(--muted)', fontSize: '12px' }}>{u.contactId ? `#${u.contactId} — ${contact ? contact.name : ''}` : '—'}</td>
                   </tr>
                 );
               })}
               {users.length === 0 && (
-                <tr><td colSpan="5" className="py-12 text-center text-slate-400 font-medium">No users found.</td></tr>
+                <tr><td colSpan={5} className="empty">No users found.</td></tr>
               )}
             </tbody>
           </table>
