@@ -1,27 +1,21 @@
-require('dotenv').config();
-const express = require('express');
-const { Pool } = require('pg');
+require("dotenv").config();
+const express = require("express");
+const { sql } = require("drizzle-orm");
+const { db } = require("./db");
 
 const app = express();
 app.use(express.json());
 
-// Set up the PostgreSQL connection pool
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
-
-// Test the database connection on startup
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('Error acquiring client', err.stack);
+async function testDb() {
+  try {
+    await db.execute(sql`select 1`);
+    console.log("Successfully connected to PostgreSQL Database!");
+  } catch (err) {
+    console.error("Error connecting to database", err);
   }
-  console.log('Successfully connected to PostgreSQL Database!');
-  release();
-});
+}
+
+testDb();
 
 // A simple test route
 app.get('/', (req, res) => {
