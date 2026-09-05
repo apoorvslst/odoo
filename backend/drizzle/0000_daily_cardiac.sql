@@ -1,10 +1,12 @@
 CREATE TABLE "users" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"username" varchar(255) NOT NULL,
-	"email" varchar(255) NOT NULL,
+	"name" varchar(100),
+	"login_id" varchar(12) NOT NULL,
+	"email" varchar(100) NOT NULL,
 	"password_hash" varchar(255) NOT NULL,
-	"role" varchar(50) DEFAULT 'viewer' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"role" varchar(20) DEFAULT 'accountant' NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "users_login_id_unique" UNIQUE("login_id"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
