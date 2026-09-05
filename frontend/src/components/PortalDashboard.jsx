@@ -3,8 +3,8 @@ import CustomerDashboard from './CustomerDashboard';
 import VendorDashboard from './VendorDashboard';
 
 export default function PortalDashboard({ user, onLogout }) {
-  const isVendor = user?.contactType === 'vendor';
-  const isCustomer = user?.contactType === 'customer';
+  const isVendor = user?.contactType === 'vendor' || user?.portalPreference === 'vendor';
+  const isCustomer = user?.contactType === 'customer' || user?.portalPreference === 'customer';
   const [activePortal, setActivePortal] = useState(isVendor ? 'vendor' : 'customer');
 
   return (

@@ -136,11 +136,21 @@ export default function App() {
 
   const handleLoginSuccess = (data) => {
     if (data?.token && data?.user) {
+      const userObj = {
+        ...data.user,
+        portalPreference: portalType,
+        contactType: data.user.contactType || (portalType === 'vendor' ? 'vendor' : portalType === 'customer' ? 'customer' : null)
+      };
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(userObj));
+      setUser(userObj);
       setInitialTab('dashboard');
-      setCurrentView(homeViewFor(data.user) === 'portal' ? VIEW.PORTAL : VIEW.OFFICE);
+
+      if (data.user.role === 'contact' || portalType === 'customer' || portalType === 'vendor') {
+        setCurrentView(VIEW.PORTAL);
+      } else {
+        setCurrentView(VIEW.OFFICE);
+      }
     }
   };
 
