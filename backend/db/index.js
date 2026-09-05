@@ -9,6 +9,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
+  max:20,  // ab 20 max connections honge 
 });
 
 const db = drizzle(pool, { schema });

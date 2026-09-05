@@ -10,6 +10,7 @@ services:
       - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      #har 5 seconds me check karte db ka scene
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d accountant_plus_plus"]
       interval: 5s
@@ -21,14 +22,14 @@ services:
     container_name: accountant-api
     ports:
       - "3000:3000"
-    environment:
+    environment: # settings set kri h
       DB_USER: admin
       DB_PASSWORD: secret
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: accountant_plus_plus
       PORT: 3000
-    depends_on:
+    depends_on:  ## tab tk chalu ni hoga jab tk db Healthy na ho
       db:
         condition: service_healthy
 
