@@ -40,7 +40,7 @@ const ConsumerLogin = ({
 
         const sanitizedEmail = email.trim();
         if (!sanitizedEmail || !password) {
-            setErrorMessage('Please enter both Email and Password.');
+            setErrorMessage('Please enter both Username/Email and Password.');
             return;
         }
 
@@ -71,10 +71,9 @@ const ConsumerLogin = ({
 
             const data = await response.json();
 
-            // Backend returns { token, user: { id, username, email, role, contactId, createdAt } }
-            // Consumer portal is for contact-role users
-            if (data.user && data.user.role !== 'contact') {
-                throw new Error('This portal is for contact (customer/vendor) users. Please use the Admin Portal.');
+            // Consumer portal is for contact/customer/vendor/accountant users
+            if (data.user && data.user.role === 'admin') {
+                throw new Error('This portal is for consumers. As an administrator, please use the Admin Portal.');
             }
 
             // Store JWT token
@@ -113,13 +112,14 @@ const ConsumerLogin = ({
                 <form onSubmit={handleSubmit} className="consumer-login-form" noValidate>
                     <div className="consumer-form-group">
                         <label htmlFor="consumer-login-email" className="consumer-form-label">
-                            Email —
+                            Username / Email —
                         </label>
                         <input
                             id="consumer-login-email"
                             name="email"
-                            type="email"
-                            autoComplete="email"
+                            type="text"
+                            autoComplete="username"
+                            placeholder="username or email"
                             required
                             disabled={isSubmitting}
                             value={email}
