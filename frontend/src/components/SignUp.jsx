@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import '../styles/SignUp.css';
+import { useState } from 'react';
 
 const INITIAL_FORM = {
     loginId: '',
@@ -17,22 +16,18 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
         const errors = {};
         const sanitizedId = formData.loginId.trim();
 
-        if (sanitizedId.length < 6 || sanitizedId.length > 12) {
-            errors.loginId = 'Login ID must be between 6 and 12 characters.';
+        if (sanitizedId.length < 3) {
+            errors.loginId = 'Username must be at least 3 characters.';
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email.trim())) {
-            errors.email = 'Enter a valid corporate email address.';
+            errors.email = 'Enter a valid email address.';
         }
 
-        const hasLower = /[a-z]/.test(formData.password);
-        const hasUpper = /[A-Z]/.test(formData.password);
-        const hasSpecial = /[^A-Za-z0-9]/.test(formData.password);
-        const hasValidLength = formData.password.length > 8;
-
-        if (!hasLower || !hasUpper || !hasSpecial || !hasValidLength) {
-            errors.password = 'Must be > 8 characters with lowercase, uppercase, and special character.';
+        // Backend only enforces: required fields + password min 6 chars.
+        if (formData.password.length < 6) {
+            errors.password = 'Password must be at least 6 characters.';
         }
 
         if (formData.password !== formData.rePassword) {
@@ -51,7 +46,7 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
 
     const parseApiError = async (response) => {
         if (response.status === 409) {
-            return 'An account with this Login ID or Email already exists.';
+            return 'An account with this username or email already exists.';
         }
         if (response.status === 422) {
             return 'Validation failed. Verify input criteria and try again.';
@@ -126,43 +121,45 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
         }
     };
 
+    const fields = [
+        { id: 'signup-loginId', label: 'Username', key: 'loginId', type: 'text', maxLength: 60, auto: 'username', placeholder: 'johndoe' },
+        { id: 'signup-email', label: 'Email', key: 'email', type: 'email', maxLength: 254, auto: 'email', placeholder: 'you@company.com' },
+        { id: 'signup-password', label: 'Password', key: 'password', type: 'password', maxLength: 128, auto: 'new-password', placeholder: 'Min 6 characters' },
+        { id: 'signup-rePassword', label: 'Confirm password', key: 'rePassword', type: 'password', maxLength: 128, auto: 'new-password', placeholder: 'Repeat password' },
+    ];
+
     return (
-        <main className="signup-container">
-            <section className="signup-card" aria-labelledby="signup-heading">
-                <header className="logo-container">
-                    <h1 id="signup-heading" className="logo-title">Urban Furniture</h1>
+        <main className="w-full max-w-sm">
+            <section className="card card-lg p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+                <header className="mb-8 text-center">
+                    <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+                        Accountant<span className="text-orange-500">++</span>
+                    </h1>
+                    <p className="text-sm text-slate-500 mt-1.5">Create your account</p>
                 </header>
 
-                <p className="signup-portal-badge">Create Account</p>
-
-                <form onSubmit={handleSubmit} className="signup-form" noValidate>
-                    {[
-                        { id: 'signup-loginId', label: 'Enter Username —', key: 'loginId', type: 'text', maxLength: 12, auto: 'username' },
-                        { id: 'signup-email', label: 'Enter Email —', key: 'email', type: 'email', maxLength: 254, auto: 'email' },
-                        { id: 'signup-password', label: 'Enter Password —', key: 'password', type: 'password', maxLength: 128, auto: 'new-password' },
-                        { id: 'signup-rePassword', label: 'Re-Enter Password —', key: 'rePassword', type: 'password', maxLength: 128, auto: 'new-password' },
-                    ].map((field) => (
-                        <div key={field.key} className="field-wrapper">
-                            <div className="form-group">
-                                <label htmlFor={field.id} className="form-label">
-                                    {field.label}
-                                </label>
-                                <input
-                                    id={field.id}
-                                    name={field.key}
-                                    type={field.type}
-                                    autoComplete={field.auto}
-                                    maxLength={field.maxLength}
-                                    disabled={isSubmitting}
-                                    value={formData[field.key]}
-                                    onChange={(e) => handleInputChange(field.key, e.target.value)}
-                                    className={`form-input ${fieldErrors[field.key] ? 'input-error' : ''}`}
-                                    aria-invalid={Boolean(fieldErrors[field.key])}
-                                    aria-describedby={fieldErrors[field.key] ? `${field.id}-err` : undefined}
-                                />
-                            </div>
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                    {fields.map((field) => (
+                        <div key={field.key}>
+                            <label htmlFor={field.id} className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                {field.label}
+                            </label>
+                            <input
+                                id={field.id}
+                                name={field.key}
+                                type={field.type}
+                                autoComplete={field.auto}
+                                maxLength={field.maxLength}
+                                placeholder={field.placeholder}
+                                disabled={isSubmitting}
+                                value={formData[field.key]}
+                                onChange={(e) => handleInputChange(field.key, e.target.value)}
+                                className={`input ${fieldErrors[field.key] ? 'border-rose-400' : ''}`}
+                                aria-invalid={Boolean(fieldErrors[field.key])}
+                                aria-describedby={fieldErrors[field.key] ? `${field.id}-err` : undefined}
+                            />
                             {fieldErrors[field.key] && (
-                                <span id={`${field.id}-err`} role="alert" className="field-error-text">
+                                <span id={`${field.id}-err`} role="alert" className="block mt-1 text-xs text-rose-600">
                                     {fieldErrors[field.key]}
                                 </span>
                             )}
@@ -170,42 +167,43 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
                     ))}
 
                     {fieldErrors.submit && (
-                        <div role="alert" aria-live="polite" className="submit-error-alert">
+                        <div role="alert" aria-live="polite" className="px-3 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
                             {fieldErrors.submit}
                         </div>
                     )}
 
-                    <div className="submit-container">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="submit-button"
-                        >
-                            {isSubmitting ? 'Creating...' : 'Sign Up'}
-                        </button>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className={`w-full py-2.5 text-sm font-semibold rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-all ${isSubmitting ? 'opacity-60 cursor-not-allowed' : 'active:scale-[0.99] cursor-pointer'}`}
+                    >
+                        {isSubmitting ? 'Creating…' : 'Create account'}
+                    </button>
                 </form>
 
-                <footer className="signup-footer">
+                <footer className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-sm">
                     <button
                         type="button"
                         disabled={isSubmitting}
                         onClick={onNavigateToForgotPassword}
-                        className="footer-link"
+                        className="text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
                     >
-                        Forgot Password
+                        Forgot password
                     </button>
-                    <span aria-hidden="true" className="footer-divider">|</span>
                     <button
                         type="button"
                         disabled={isSubmitting}
                         onClick={onNavigateToLogin}
-                        className="footer-link"
+                        className="font-semibold text-orange-600 hover:text-orange-700 transition-colors cursor-pointer"
                     >
-                        Sign In
+                        Sign in
                     </button>
                 </footer>
             </section>
+
+            <p className="mt-4 text-center text-xs text-slate-400">
+                The first account created becomes the <span className="font-semibold text-slate-500">admin</span>.
+            </p>
         </main>
     );
 };
