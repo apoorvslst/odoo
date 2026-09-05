@@ -14,7 +14,6 @@ function validate(schema) {   // middleware for  authentication
       const firstError = result.error.errors[0].message;
       return res.status(400).json({ error: firstError });
     }
-
     next();  // sb theek toh aage
   };
 }
