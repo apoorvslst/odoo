@@ -26,13 +26,11 @@
   overflow-x: hidden;
 }
 
-/* Added to support Login/Signup Routing wrappers */
+/* Transparent wrapper — auth screens control their own background */
 .view-wrapper {
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background-color: #121212;
-  /* Matches the dark theme of the auth modals */
 }
 
 /* Header / Navigation */
@@ -397,20 +395,210 @@
   top: 1.25rem;
   left: 1.25rem;
   z-index: 100;
-  background-color: #1e1e1e;
-  color: #f3f4f6;
-  border: 1px solid #444444;
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
   padding: 0.45rem 0.95rem;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-floating-back:hover {
-  background-color: #333333;
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+/* ── Portal Selection Screen — White ────────────────────────────── */
+.portal-select-screen {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  gap: 2.5rem;
+  position: relative;
+}
+
+.portal-select-heading {
+  text-align: center;
+}
+
+.portal-select-heading h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.portal-select-heading p {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.portal-cards-row {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Shared portal card */
+.portal-card {
+  width: 240px;
+  border-radius: 1.5rem;
+  padding: 2.5rem 1.75rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  text-align: center;
+  user-select: none;
+  background-color: #ffffff;
+}
+
+.portal-card:hover {
+  transform: translateY(-8px);
+}
+
+/* Admin card — vivid red */
+.portal-card-admin {
+  border: 2px solid #fca5a5;
+  box-shadow:
+    0 0 0 4px rgba(220, 38, 38, 0.06),
+    0 8px 24px rgba(220, 38, 38, 0.12),
+    0 2px 6px rgba(0,0,0,0.04);
+}
+
+.portal-card-admin:hover {
+  border-color: #ef4444;
+  box-shadow:
+    0 0 0 4px rgba(220, 38, 38, 0.10),
+    0 16px 36px rgba(220, 38, 38, 0.18),
+    0 4px 10px rgba(0,0,0,0.06);
+}
+
+/* Consumer card — vivid blue */
+.portal-card-consumer {
+  border: 2px solid #93c5fd;
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.06),
+    0 8px 24px rgba(37, 99, 235, 0.12),
+    0 2px 6px rgba(0,0,0,0.04);
+}
+
+.portal-card-consumer:hover {
+  border-color: #3b82f6;
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.10),
+    0 16px 36px rgba(37, 99, 235, 0.18),
+    0 4px 10px rgba(0,0,0,0.06);
+}
+
+/* Coloured top bar on each card */
+.portal-card-admin::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+  margin-bottom: 0.25rem;
+}
+
+.portal-card-consumer::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  margin-bottom: 0.25rem;
+}
+
+/* Icon circle inside card */
+.portal-card-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+
+.portal-card-admin .portal-card-icon {
+  background-color: #fff1f2;
+  border: 1.5px solid #fecaca;
+}
+
+.portal-card-consumer .portal-card-icon {
+  background-color: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+}
+
+.portal-card-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.portal-card-admin .portal-card-label {
+  color: #dc2626;
+}
+
+.portal-card-consumer .portal-card-label {
+  color: #2563eb;
+}
+
+.portal-card-desc {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.portal-card-cta {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.45rem 1.4rem;
+  border-radius: 0.5rem;
+  border: none;
   color: #ffffff;
+  transition: opacity 0.18s ease, transform 0.1s ease;
+}
+
+.portal-card-admin .portal-card-cta {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.35);
+}
+
+.portal-card-admin:hover .portal-card-cta {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.portal-card-consumer .portal-card-cta {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+}
+
+.portal-card-consumer:hover .portal-card-cta {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
