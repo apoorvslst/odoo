@@ -1,11 +1,18 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { sql } = require("drizzle-orm");
 const { db } = require("./db");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
+// --- Routes ---
+app.use("/api", authRoutes);
+
+// --- Database connection check ---
 async function testDb() {
   try {
     await db.execute(sql`select 1`);
@@ -17,12 +24,12 @@ async function testDb() {
 
 testDb();
 
-// A simple test route
-app.get('/', (req, res) => {
-  res.send('AccountanT++ API is running');
+// --- Health check ---
+app.get("/", (req, res) => {
+  res.send("AccountanT++ API is running");
 });
 
-// Start your Express server
+// --- Start server ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

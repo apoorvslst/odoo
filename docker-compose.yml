@@ -1,0 +1,36 @@
+services:
+  db: # postgres ko lete h 
+    image: postgres:16-alpine
+    container_name: accountant-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: accountant_plus_plus
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d accountant_plus_plus"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: accountant-api
+    ports:
+      - "3000:3000"
+    environment:
+      DB_USER: admin
+      DB_PASSWORD: secret
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: accountant_plus_plus
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

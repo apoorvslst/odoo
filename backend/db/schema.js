@@ -2,11 +2,12 @@ const { pgTable, serial, varchar, text, timestamp, numeric, date, integer } = re
 
 const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: varchar("username", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 100 }),
+  loginId: varchar("login_id", { length: 12 }).notNull().unique(),
+  email: varchar("email", { length: 100 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-  role: varchar("role", { length: 50 }).notNull().default("viewer"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  role: varchar("role", { length: 20 }).notNull().default("accountant"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 const accounts = pgTable("accounts", {
