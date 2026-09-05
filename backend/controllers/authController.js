@@ -4,9 +4,10 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { JWT_SECRET } = require('../middlewares/auth');
 
-// ========================
-// SIGN UP (Public)
-// ========================
+// Registers a new user publicly.
+// Checks if login_id or email already exists in DB.
+// If not, hashes the password with bcrypt and saves the user.
+// New users get 'accountant' role by default.
 const signup = async (req, res) => {
   try {
     const { login_id, email, password } = req.body;
@@ -38,9 +39,10 @@ const signup = async (req, res) => {
   }
 };
 
-// ========================
-// SIGN IN (Login)
-// ========================
+// Logs in an existing user.
+// Looks up user by login_id in DB.
+// Compares the given password with the stored hashed password using bcrypt.
+// If they match, creates and returns a JWT token (valid 24h).
 const signin = async (req, res) => {
   try {
     const { login_id, password } = req.body;
@@ -83,9 +85,9 @@ const signin = async (req, res) => {
   }
 };
 
-// ========================
-// CREATE USER (Admin only)
-// ========================
+// Admin creates a user with a specific role (admin/accountant/user).
+// Same duplicate checks as signup.
+// Hashes password, then inserts user with the chosen role.
 const createUser = async (req, res) => {
   try {
     const { name, login_id, email, password, role } = req.body;
