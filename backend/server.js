@@ -1,20 +1,31 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const { sql } = require("drizzle-orm");
 const { db } = require("./db");
-const authRoutes = require("./routes/authRoutes");
+const routes = require("./routes");
+const { notFound, errorHandler } = require("./middleware/errorHandler");
+
 const app = express();
-
-app.use(express.json());
 app.use(cors());
-
-// Auth routes (supporting both /api/v1/auth for frontend and /api fallback)
-app.use("/api/v1/auth", authRoutes);
-app.use("/api", authRoutes);
+app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Hello this is Accountant++ , Your API is running");
+  res.send("AccountanT++ API is running");
 });
+
+app.get("/health", async (req, res, next) => {
+  try {
+    await db.execute(sql`select 1`);
+    res.json({ status: "ok", db: "connected" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.use("/api", routes);
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

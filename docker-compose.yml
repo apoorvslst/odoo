@@ -29,6 +29,7 @@ services:
       DB_PORT: 5432
       DB_NAME: accountant_plus_plus
       PORT: 3000
+      JWT_SECRET: dev_secret_change_me_in_prod
     depends_on:  ## tab tk chalu ni hoga jab tk db Healthy na ho
       db:
         condition: service_healthy

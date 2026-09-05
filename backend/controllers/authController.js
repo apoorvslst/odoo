@@ -1,103 +1,96 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { pool } = require('../db');
-const { JWT_SECRET } = require('../middlewares/auth');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { eq } = require("drizzle-orm");
+const { db } = require("../db");
+const { users, contacts } = require("../db/schema");
+const ApiError = require("../utils/apiError");
+const asyncHandler = require("../utils/asyncHandler");
+const { ROLES } = require("../utils/constants");
 
-const signup = async (req, res) => {
-  try {
-    const login_id = req.body.login_id || req.body.loginId;
-    const email = req.body.email;
-    const password = req.body.password;
+const publicUser = (u) => ({
+  id: u.id,
+  username: u.username,
+  email: u.email,
+  role: u.role,
+  contactId: u.contactId,
+  createdAt: u.createdAt,
+});
 
-    const alreadylogin = await pool.query('SELECT id FROM users WHERE login_id = $1', [login_id]);
-    if (alreadylogin.rows.length > 0) {
-      return res.status(409).json({ error: 'Login Id already exists' });
-    }
-
-    const alreadyemail = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (alreadyemail.rows.length > 0) {
-      return res.status(409).json({ error: 'Email Id is already registered' });
-    }
-
-    const password_hash = await bcrypt.hash(password, 10);
-
-    const result = await pool.query(
-      'INSERT INTO users (login_id, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, login_id, email, role',
-      [login_id, email, password_hash, 'accountant']
-    );
-
-    res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+const register = asyncHandler(async (req, res) => {
+  const { username, email, password } = req.body || {};
+  if (!username || !email || !password) {
+    throw new ApiError(400, "username, email and password are required");
   }
-};
-
-const signin = async (req, res) => {
-  try {
-    const login_id = req.body.login_id || req.body.loginId;
-    const password = req.body.password;
-
-    const result = await pool.query('SELECT * FROM users WHERE login_id = $1', [login_id]);
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid Login Id or Password' });
-    }
-
-    const user = result.rows[0];
-
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return res.status(401).json({ error: 'Invalid Login Id or Password' });
-    }
-
-    const token = jwt.sign(
-      { id: user.id, login_id: user.login_id, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      message: 'Logged in successfully',
-      token,
-      user: {
-        id: user.id,
-        login_id: user.login_id,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+  if (String(password).length < 6) {
+    throw new ApiError(400, "password must be at least 6 characters");
   }
-};
 
-const createUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-    const login_id = req.body.login_id || req.body.loginId;
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  if (existing) throw new ApiError(409, "Email is already registered");
 
-    const existingUser = await pool.query(
-      'SELECT id FROM users WHERE login_id = $1 OR email = $2',
-      [login_id, email]
-    );
-    if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: 'Login Id or Email already exists' });
-    }
+  const all = await db.select({ id: users.id }).from(users);
+  // Bootstrap: first user is admin; later self-registration is accountant
+  // (contact users are created by an admin from the contact master).
+  const role = all.length === 0 ? "admin" : "accountant";
 
-    const password_hash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
+  const [user] = await db.insert(users).values({ username, email, passwordHash, role }).returning();
+  res.status(201).json({ user: publicUser(user) });
+});
 
-    const result = await pool.query(
-      'INSERT INTO users (login_id, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, login_id, email, role',
-      [login_id, email, password_hash, role]
-    );
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) throw new ApiError(400, "email and password are required");
 
-    res.status(201).json({ message: 'User created successfully', user: result.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  if (!user) throw new ApiError(401, "Invalid credentials");
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) throw new ApiError(401, "Invalid credentials");
+
+  const token = jwt.sign(
+    { sub: user.id, role: user.role, contactId: user.contactId },
+    process.env.JWT_SECRET,
+    { expiresIn: "12h" }
+  );
+  res.json({ token, user: publicUser(user) });
+});
+
+const me = asyncHandler(async (req, res) => {
+  const [user] = await db.select().from(users).where(eq(users.id, req.user.id));
+  if (!user) throw new ApiError(404, "User not found");
+  res.json(publicUser(user));
+});
+
+// Admin-only user creation with an explicit role; contact users must be tied
+// to a contact (that is what makes them portal users).
+const createUser = asyncHandler(async (req, res) => {
+  const { username, email, password, role = "accountant", contactId } = req.body || {};
+  if (!username || !email || !password) {
+    throw new ApiError(400, "username, email and password are required");
   }
-};
+  if (!ROLES.includes(role)) throw new ApiError(400, `role must be one of: ${ROLES.join(", ")}`);
+  if (role === "contact" && !contactId) {
+    throw new ApiError(400, "contactId is required for contact (portal) users");
+  }
+  if (contactId) {
+    const [contact] = await db.select({ id: contacts.id }).from(contacts).where(eq(contacts.id, contactId));
+    if (!contact) throw new ApiError(404, "Contact not found");
+  }
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  if (existing) throw new ApiError(409, "Email is already registered");
 
-module.exports = { signup, signin, createUser };
+  const passwordHash = await bcrypt.hash(password, 10);
+  const [user] = await db
+    .insert(users)
+    .values({ username, email, passwordHash, role, contactId: role === "contact" ? contactId : null })
+    .returning();
+  res.status(201).json({ user: publicUser(user) });
+});
+
+const listUsers = asyncHandler(async (req, res) => {
+  const rows = await db.select().from(users);
+  res.json(rows.map(publicUser));
+});
+
+module.exports = { register, login, me, createUser, listUsers };
