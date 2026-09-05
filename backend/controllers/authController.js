@@ -1,18 +1,19 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { eq } = require("drizzle-orm");
+const { eq, or, sql } = require("drizzle-orm");
 const { db } = require("../db");
 const { users, contacts } = require("../db/schema");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { ROLES } = require("../utils/constants");
 
-const publicUser = (u) => ({
+const publicUser = (u, contactType = null) => ({
   id: u.id,
   username: u.username,
   email: u.email,
   role: u.role,
   contactId: u.contactId,
+  contactType: contactType || u.contactType || null,
   createdAt: u.createdAt,
 });
 
@@ -40,26 +41,48 @@ const register = asyncHandler(async (req, res) => {
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
-  if (!email || !password) throw new ApiError(400, "email and password are required");
+  if (!email || !password) throw new ApiError(400, "username/email and password are required");
 
-  const [user] = await db.select().from(users).where(eq(users.email, email));
+  const identifier = String(email).trim();
+  // Support logging in via email OR username (case-insensitive)
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(
+      or(
+        sql`LOWER(${users.email}) = LOWER(${identifier})`,
+        sql`LOWER(${users.username}) = LOWER(${identifier})`
+      )
+    );
   if (!user) throw new ApiError(401, "Invalid credentials");
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) throw new ApiError(401, "Invalid credentials");
+
+  let contactType = null;
+  if (user.contactId) {
+    const [c] = await db.select({ type: contacts.type }).from(contacts).where(eq(contacts.id, user.contactId));
+    if (c) contactType = c.type;
+  }
 
   const token = jwt.sign(
     { sub: user.id, role: user.role, contactId: user.contactId },
     process.env.JWT_SECRET,
     { expiresIn: "12h" }
   );
-  res.json({ token, user: publicUser(user) });
+  res.json({ token, user: publicUser(user, contactType) });
 });
 
 const me = asyncHandler(async (req, res) => {
   const [user] = await db.select().from(users).where(eq(users.id, req.user.id));
   if (!user) throw new ApiError(404, "User not found");
-  res.json(publicUser(user));
+
+  let contactType = null;
+  if (user.contactId) {
+    const [c] = await db.select({ type: contacts.type }).from(contacts).where(eq(contacts.id, user.contactId));
+    if (c) contactType = c.type;
+  }
+  res.json({ user: publicUser(user, contactType) });
 });
 
 // Admin-only user creation with an explicit role; contact users must be tied

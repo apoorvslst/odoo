@@ -65,7 +65,7 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
 
         try {
             const data = await response.json();
-            return data?.message || `Registration failed (Error ${response.status}).`;
+            return data?.error || data?.message || `Registration failed (Error ${response.status}).`;
         } catch {
             return 'Received an unexpected response from the server.';
         }
@@ -86,17 +86,16 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            const response = await fetch('/api/v1/auth/signup', {
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    loginId: formData.loginId.trim(),
+                    username: formData.loginId.trim(),
                     email: formData.email.trim(),
                     password: formData.password,
-                    role: 'INVOICING_USER',
                 }),
                 signal: controller.signal,
             });
@@ -109,6 +108,7 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
             }
 
             setFormData(INITIAL_FORM);
+            alert('Account created successfully! You can now sign in.');
             if (typeof onNavigateToLogin === 'function') {
                 onNavigateToLogin();
             }
@@ -130,15 +130,17 @@ const SignUp = ({ onNavigateToLogin, onNavigateToForgotPassword }) => {
         <main className="signup-container">
             <section className="signup-card" aria-labelledby="signup-heading">
                 <header className="logo-container">
-                    <h1 id="signup-heading" className="logo-title">App LoGo</h1>
+                    <h1 id="signup-heading" className="logo-title">Urban Furniture</h1>
                 </header>
+
+                <p className="signup-portal-badge">Create Account</p>
 
                 <form onSubmit={handleSubmit} className="signup-form" noValidate>
                     {[
-                        { id: 'signup-loginId', label: 'Enter Login Id -', key: 'loginId', type: 'text', maxLength: 12, auto: 'username' },
-                        { id: 'signup-email', label: 'Enter Email Id -', key: 'email', type: 'email', maxLength: 254, auto: 'email' },
-                        { id: 'signup-password', label: 'Enter Password -', key: 'password', type: 'password', maxLength: 128, auto: 'new-password' },
-                        { id: 'signup-rePassword', label: 'Re-Enter Password -', key: 'rePassword', type: 'password', maxLength: 128, auto: 'new-password' },
+                        { id: 'signup-loginId', label: 'Enter Username —', key: 'loginId', type: 'text', maxLength: 12, auto: 'username' },
+                        { id: 'signup-email', label: 'Enter Email —', key: 'email', type: 'email', maxLength: 254, auto: 'email' },
+                        { id: 'signup-password', label: 'Enter Password —', key: 'password', type: 'password', maxLength: 128, auto: 'new-password' },
+                        { id: 'signup-rePassword', label: 'Re-Enter Password —', key: 'rePassword', type: 'password', maxLength: 128, auto: 'new-password' },
                     ].map((field) => (
                         <div key={field.key} className="field-wrapper">
                             <div className="form-group">

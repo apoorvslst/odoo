@@ -6,7 +6,7 @@ const ConsumerLogin = ({
     onNavigateToSignUp,
     onNavigateToForgotPassword,
 }) => {
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,13 +18,13 @@ const ConsumerLogin = ({
 
     const parseApiError = async (response) => {
         if (response.status === 401 || response.status === 403) {
-            return 'Invalid Consumer ID or Password.';
+            return 'Invalid Email or Password.';
         }
         if (response.status === 429) {
             return 'Too many login attempts. Please wait a few minutes and try again.';
         }
         if (response.status >= 500) {
-            return 'Consumer authentication service is temporarily unavailable.';
+            return 'Authentication service is temporarily unavailable.';
         }
         try {
             const data = await response.json();
@@ -38,9 +38,9 @@ const ConsumerLogin = ({
         e.preventDefault();
         if (isSubmitting) return;
 
-        const sanitizedLoginId = loginId.trim();
-        if (!sanitizedLoginId || !password) {
-            setErrorMessage('Please enter both Consumer ID and Password.');
+        const sanitizedEmail = email.trim();
+        if (!sanitizedEmail || !password) {
+            setErrorMessage('Please enter both Email and Password.');
             return;
         }
 
@@ -51,13 +51,14 @@ const ConsumerLogin = ({
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            const response = await fetch('/api/v1/auth/consumer/login', {
+            // Backend has a single unified login endpoint
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({ loginId: sanitizedLoginId, password }),
+                body: JSON.stringify({ email: sanitizedEmail, password }),
                 signal: controller.signal,
             });
 
@@ -70,10 +71,20 @@ const ConsumerLogin = ({
 
             const data = await response.json();
 
+            // Backend returns { token, user: { id, username, email, role, contactId, createdAt } }
+            // Consumer portal is for contact-role users
+            if (data.user && data.user.role !== 'contact') {
+                throw new Error('This portal is for contact (customer/vendor) users. Please use the Admin Portal.');
+            }
+
+            // Store JWT token
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+            }
+
             if (typeof onLoginSuccess === 'function') {
                 onLoginSuccess(data);
-            } else {
-                window.location.assign(data.redirectUrl || '/consumer/portal');
             }
         } catch (err) {
             if (err.name === 'AbortError') {
@@ -94,26 +105,25 @@ const ConsumerLogin = ({
             <section className="consumer-login-card" aria-labelledby="consumer-login-heading">
 
                 <header className="consumer-logo-container">
-                    <h1 id="consumer-login-heading" className="consumer-logo-title">App Logo</h1>
+                    <h1 id="consumer-login-heading" className="consumer-logo-title">Urban Furniture</h1>
                 </header>
 
                 <p className="consumer-portal-badge">Consumer Portal</p>
 
                 <form onSubmit={handleSubmit} className="consumer-login-form" noValidate>
                     <div className="consumer-form-group">
-                        <label htmlFor="consumer-login-id" className="consumer-form-label">
-                            Consumer ID —
+                        <label htmlFor="consumer-login-email" className="consumer-form-label">
+                            Email —
                         </label>
                         <input
-                            id="consumer-login-id"
-                            name="loginId"
-                            type="text"
-                            autoComplete="username"
-                            maxLength={12}
+                            id="consumer-login-email"
+                            name="email"
+                            type="email"
+                            autoComplete="email"
                             required
                             disabled={isSubmitting}
-                            value={loginId}
-                            onChange={handleInputChange(setLoginId)}
+                            value={email}
+                            onChange={handleInputChange(setEmail)}
                             className={`consumer-form-input ${errorMessage ? 'input-error' : ''}`}
                             aria-invalid={Boolean(errorMessage)}
                             aria-describedby={errorMessage ? 'consumer-login-error-msg' : undefined}

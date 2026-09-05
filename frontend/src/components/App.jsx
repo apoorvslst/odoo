@@ -3,39 +3,50 @@ import Login from './Login';
 import SignUp from './SignUp';
 import AdminLogin from './AdminLogin';
 import ConsumerLogin from './ConsumerLogin';
+import AdminDashboard from './AdminDashboard';
 import CustomerDashboard from './CustomerDashboard';
 import VendorDashboard from './VendorDashboard';
 import '../styles/App.css';
 
 const VIEW = {
-  LANDING:            'landing',
-  LOGIN_SELECT:       'login_select',
-  LOGIN:              'login',
-  ADMIN_LOGIN:        'admin_login',
-  CONSUMER_LOGIN:     'consumer_login',
-  SIGNUP:             'signup',
+  LANDING: 'landing',
+  LOGIN_SELECT: 'login_select',
+  LOGIN: 'login',
+  ADMIN_LOGIN: 'admin_login',
+  CONSUMER_LOGIN: 'consumer_login',
+  SIGNUP: 'signup',
+  ADMIN_DASHBOARD: 'admin_dashboard',
   CUSTOMER_DASHBOARD: 'customer_dashboard',
-  VENDOR_DASHBOARD:   'vendor_dashboard',
+  VENDOR_DASHBOARD: 'vendor_dashboard',
 };
 
 export default function App() {
   const [currentView, setCurrentView] = useState(VIEW.LANDING);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  // Handles logout — clears user and goes back to landing
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
     setCurrentView(VIEW.LANDING);
   };
 
-  // Handles login success — stores user data and navigates to dashboard
-  const handleLoginSuccess = (data) => {
-    setUser(data.user);
-    const role = data.user?.role;
-    if (role === 'admin') {
-      setCurrentView(VIEW.LANDING);
-    } else if (role === 'user') {
-      setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+  const navigateUserDashboard = (currentUser = user) => {
+    if (!currentUser) {
+      setCurrentView(VIEW.LOGIN_SELECT);
+      return;
+    }
+    if (currentUser.role === 'admin' || currentUser.role === 'accountant') {
+      setCurrentView(VIEW.ADMIN_DASHBOARD);
+    } else if (currentUser.contactType === 'vendor') {
+      setCurrentView(VIEW.VENDOR_DASHBOARD);
     } else {
       setCurrentView(VIEW.CUSTOMER_DASHBOARD);
     }
@@ -64,7 +75,6 @@ export default function App() {
         </div>
 
         <div className="portal-cards-row">
-          {/* Admin card */}
           <div
             className="portal-card portal-card-admin"
             onClick={() => setCurrentView(VIEW.ADMIN_LOGIN)}
@@ -81,7 +91,6 @@ export default function App() {
             <span className="portal-card-cta">Sign In →</span>
           </div>
 
-          {/* Consumer card */}
           <div
             className="portal-card portal-card-consumer"
             onClick={() => setCurrentView(VIEW.CONSUMER_LOGIN)}
@@ -102,47 +111,16 @@ export default function App() {
     );
   }
 
-  /* ── Customer Dashboard ── */
-  if (currentView === VIEW.CUSTOMER_DASHBOARD && user) {
-    return (
-      <div className="view-wrapper">
-        <div className="dashboard-topbar">
-          <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
-          <div className="profile-menu">
-            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
-            <span className="profile-name">{user.name || user.login_id}</span>
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-        <CustomerDashboard />
-      </div>
-    );
-  }
-
-  /* ── Vendor Dashboard ── */
-  if (currentView === VIEW.VENDOR_DASHBOARD && user) {
-    return (
-      <div className="view-wrapper">
-        <div className="dashboard-topbar">
-          <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
-          <div className="profile-menu">
-            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
-            <span className="profile-name">{user.name || user.login_id}</span>
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
-          </div>
-        </div>
-        <VendorDashboard />
-      </div>
-    );
-  }
-
   /* ── Admin Login ── */
   if (currentView === VIEW.ADMIN_LOGIN) {
     return (
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LOGIN_SELECT} label="← Choose Portal" />
         <AdminLogin
-          onLoginSuccess={handleLoginSuccess}
+          onLoginSuccess={(data) => {
+            if (data?.user) setUser(data.user);
+            setCurrentView(VIEW.ADMIN_DASHBOARD);
+          }}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link dispatched to your admin account.')
@@ -152,13 +130,25 @@ export default function App() {
     );
   }
 
+  /* ── Admin Dashboard Wrapper ── */
+  if (currentView === VIEW.ADMIN_DASHBOARD) {
+    return <AdminDashboard onLogout={handleLogout} />;
+  }
+
   /* ── Consumer Login ── */
   if (currentView === VIEW.CONSUMER_LOGIN) {
     return (
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LOGIN_SELECT} label="← Choose Portal" />
         <ConsumerLogin
-          onLoginSuccess={handleLoginSuccess}
+          onLoginSuccess={(data) => {
+            if (data?.user) setUser(data.user);
+            if (data?.user?.contactType === 'vendor') {
+              setCurrentView(VIEW.VENDOR_DASHBOARD);
+            } else {
+              setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+            }
+          }}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link dispatched to your consumer account.')
@@ -168,13 +158,36 @@ export default function App() {
     );
   }
 
-  /* ── Generic Login (original — kept for direct app-tile clicks) ── */
+  /* ── Customer Dashboard ── */
+  if (currentView === VIEW.CUSTOMER_DASHBOARD) {
+    return (
+      <div className="view-wrapper">
+        <FloatingBack to={VIEW.LANDING} label="← Back to Overview" />
+        <CustomerDashboard onLogout={handleLogout} />
+      </div>
+    );
+  }
+
+  /* ── Vendor Dashboard ── */
+  if (currentView === VIEW.VENDOR_DASHBOARD) {
+    return (
+      <div className="view-wrapper">
+        <FloatingBack to={VIEW.LANDING} label="← Back to Overview" />
+        <VendorDashboard onLogout={handleLogout} />
+      </div>
+    );
+  }
+
+  /* ── Generic Login (original) ── */
   if (currentView === VIEW.LOGIN) {
     return (
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LANDING} label="← Back to Overview" />
         <Login
-          onLoginSuccess={handleLoginSuccess}
+          onLoginSuccess={(data) => {
+            if (data?.user) setUser(data.user);
+            navigateUserDashboard(data?.user);
+          }}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link has been dispatched to your administrator.')
@@ -202,7 +215,6 @@ export default function App() {
   /* ── Landing Page ── */
   return (
     <div className="landing-wrapper">
-      {/* Top Header */}
       <header className="odoo-header">
         <div className="brand-logo" onClick={() => setCurrentView(VIEW.LANDING)}>
           <span>odoo</span>
@@ -222,9 +234,27 @@ export default function App() {
         <div className="header-actions">
           {user ? (
             <div className="profile-menu">
-              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
-              <span className="profile-name">{user.name || user.login_id}</span>
-              <button type="button" onClick={handleLogout} className="btn-logout">Logout</button>
+              <div className="profile-avatar">
+                {(user.username || user.name || user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div className="profile-info">
+                <span className="profile-name">{user.username || user.name || user.email}</span>
+                <span className="profile-badge">{user.role}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigateUserDashboard(user)}
+                className="btn-header-signin"
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn-logout"
+              >
+                Logout
+              </button>
             </div>
           ) : (
             <>
@@ -247,7 +277,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Hero Body */}
       <main>
         <section className="hero-container">
           <h1 className="hero-heading">
@@ -272,7 +301,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Pricing callout */}
           <aside className="pricing-callout" aria-label="Pricing announcement">
             <svg
               className="callout-arrow"
@@ -290,7 +318,6 @@ export default function App() {
             <span>for ALL apps</span>
           </aside>
 
-          {/* Event Announcement Pill */}
           <div className="banner-pill-wrapper">
             <div className="banner-pill">
               <span role="img" aria-label="India flag">🇮🇳</span>
@@ -307,10 +334,8 @@ export default function App() {
           </div>
         </section>
 
-        {/* Convex Curved Apps Tray — clicking tiles goes to portal selector */}
         <section className="arc-container" aria-label="Applications Suite">
           <div className="apps-grid">
-            {/* Accounting */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#FDF2F8' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2.5" strokeLinecap="round">
@@ -322,7 +347,6 @@ export default function App() {
               <span className="app-tile-name">Accounting</span>
             </div>
 
-            {/* Knowledge */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#F0FDF4' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -333,7 +357,6 @@ export default function App() {
               <span className="app-tile-name">Knowledge</span>
             </div>
 
-            {/* Sign */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#EFF6FF' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -344,7 +367,6 @@ export default function App() {
               <span className="app-tile-name">Sign</span>
             </div>
 
-            {/* CRM */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#FAF5FF' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -357,7 +379,6 @@ export default function App() {
               <span className="app-tile-name">CRM</span>
             </div>
 
-            {/* Studio */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#FFFBEB' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -367,7 +388,6 @@ export default function App() {
               <span className="app-tile-name">Studio</span>
             </div>
 
-            {/* Subscriptions */}
             <div className="app-tile" onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}>
               <div className="app-icon-squircle" style={{ backgroundColor: '#ECFDF5' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

@@ -6,7 +6,7 @@ const AdminLogin = ({
     onNavigateToSignUp,
     onNavigateToForgotPassword,
 }) => {
-    const [loginId, setLoginId] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,9 +38,9 @@ const AdminLogin = ({
         e.preventDefault();
         if (isSubmitting) return;
 
-        const sanitizedLoginId = loginId.trim();
-        if (!sanitizedLoginId || !password) {
-            setErrorMessage('Please enter both Admin ID and Password.');
+        const sanitizedEmail = email.trim();
+        if (!sanitizedEmail || !password) {
+            setErrorMessage('Please enter both Email and Password.');
             return;
         }
 
@@ -51,13 +51,13 @@ const AdminLogin = ({
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            const response = await fetch('/api/v1/auth/admin/login', {
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({ loginId: sanitizedLoginId, password }),
+                body: JSON.stringify({ email: sanitizedEmail, password }),
                 signal: controller.signal,
             });
 
@@ -70,10 +70,20 @@ const AdminLogin = ({
 
             const data = await response.json();
 
+            // Backend returns { token, user: { id, username, email, role, contactId, createdAt } }
+            // Only admin and accountant roles should access admin dashboard
+            if (data.user && data.user.role !== 'admin' && data.user.role !== 'accountant') {
+                throw new Error('Access denied. This portal is for admin and accountant users only.');
+            }
+
+            // Store JWT token for subsequent API calls
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+            }
+
             if (typeof onLoginSuccess === 'function') {
                 onLoginSuccess(data);
-            } else {
-                window.location.assign(data.redirectUrl || '/admin/dashboard');
             }
         } catch (err) {
             if (err.name === 'AbortError') {
@@ -94,26 +104,26 @@ const AdminLogin = ({
             <section className="admin-login-card" aria-labelledby="admin-login-heading">
 
                 <header className="admin-logo-container">
-                    <h1 id="admin-login-heading" className="admin-logo-title">App Logo</h1>
+                    <h1 id="admin-login-heading" className="admin-logo-title">Urban Furniture</h1>
                 </header>
 
                 <p className="admin-portal-badge">Admin Portal</p>
 
                 <form onSubmit={handleSubmit} className="admin-login-form" noValidate>
                     <div className="admin-form-group">
-                        <label htmlFor="admin-login-id" className="admin-form-label">
-                            Admin ID —
+                        <label htmlFor="admin-login-email" className="admin-form-label">
+                            Username / Email —
                         </label>
                         <input
-                            id="admin-login-id"
-                            name="loginId"
+                            id="admin-login-email"
+                            name="email"
                             type="text"
                             autoComplete="username"
-                            maxLength={12}
+                            placeholder="admin or email"
                             required
                             disabled={isSubmitting}
-                            value={loginId}
-                            onChange={handleInputChange(setLoginId)}
+                            value={email}
+                            onChange={handleInputChange(setEmail)}
                             className={`admin-form-input ${errorMessage ? 'input-error' : ''}`}
                             aria-invalid={Boolean(errorMessage)}
                             aria-describedby={errorMessage ? 'admin-login-error-msg' : undefined}
@@ -180,6 +190,10 @@ const AdminLogin = ({
                         Sign Up
                     </button>
                 </footer>
+
+                <div style={{ marginTop: '1.25rem', fontSize: '0.73rem', color: '#991b1b', background: '#fef2f2', border: '1px dashed #fecaca', padding: '6px 14px', borderRadius: '8px', textAlign: 'center', lineHeight: 1.4 }}>
+                    Demo Admin: <strong>admin</strong> (or admin@accountant.local) &bull; Password: <strong>admin123</strong>
+                </div>
             </section>
         </main>
     );

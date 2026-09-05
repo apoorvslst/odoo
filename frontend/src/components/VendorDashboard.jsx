@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// Sample data for vendor purchase bills
+// Sample data for fallback vendor purchase bills
 const INITIAL_BILLS = [
   {
-    id: 'BILL-2026-101',
-    poReference: 'PO-2026-005',
+    id: 'BILL-101',
+    poReference: 'PO-005',
     date: '2026-08-20',
     dueDate: '2026-09-05',
     items: [
@@ -12,11 +12,11 @@ const INITIAL_BILLS = [
       { name: 'Steel Joints', quantity: 50, unitPrice: 10, tax: 18 }
     ],
     amount: 4130.00,
-    status: 'Pending', // Status: Paid, Pending, Overdue
+    status: 'Pending',
   },
   {
-    id: 'BILL-2026-102',
-    poReference: 'PO-2026-008',
+    id: 'BILL-102',
+    poReference: 'PO-008',
     date: '2026-09-01',
     dueDate: '2026-09-20',
     items: [
@@ -26,8 +26,8 @@ const INITIAL_BILLS = [
     status: 'Pending',
   },
   {
-    id: 'BILL-2026-099',
-    poReference: 'PO-2026-001',
+    id: 'BILL-099',
+    poReference: 'PO-001',
     date: '2026-07-15',
     dueDate: '2026-07-30',
     items: [
@@ -38,21 +38,59 @@ const INITIAL_BILLS = [
   }
 ];
 
-export default function VendorDashboard() {
-  // Store vendor bills list
+const PAGE_SIZE = 10;
+
+export default function VendorDashboard({ onLogout }) {
   const [bills, setBills] = useState(INITIAL_BILLS);
-
-  // Status filter state
   const [filterStatus, setFilterStatus] = useState('All');
-
-  // Search input state
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Selected bill for modal view
   const [selectedBill, setSelectedBill] = useState(null);
-
-  // Success message state
   const [message, setMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+  })();
+
+  // Load live vendor bills from backend portal API
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    setIsLoading(true);
+    fetch('/api/portal/documents?kind=bill', {
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map(doc => ({
+            id: `BILL-${doc.id}`,
+            backendId: doc.id,
+            poReference: `PO-${doc.id}`,
+            date: doc.date,
+            dueDate: doc.dueDate || '—',
+            items: [],
+            amount: Number(doc.totalAmount || 0),
+            paid: Number(doc.paid || 0),
+            balanceDue: Number(doc.balanceDue || 0),
+            status: doc.status ? doc.status.charAt(0).toUpperCase() + doc.status.slice(1) : 'Pending',
+          }));
+          setBills(mapped);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  // Reset to page 1 on filter or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, searchTerm]);
 
   // Calculate metrics
   const totalReceivable = bills
@@ -70,10 +108,12 @@ export default function VendorDashboard() {
     const matchesStatus = filterStatus === 'All' || bill.status === filterStatus;
     const matchesSearch = bill.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.poReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+      (bill.items || []).some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesStatus && matchesSearch;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredBills.length / PAGE_SIZE));
+  const paginatedBills = filteredBills.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Mark bill payment request
   const handleRequestPayment = (billId) => {
@@ -90,16 +130,29 @@ export default function VendorDashboard() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Vendor Portal
+              Vendor Portal {isLoading && '• Syncing...'}
             </span>
-            <h1 className="text-2xl font-bold text-gray-900 mt-2">Azure Furniture Suppliers</h1>
-            <p className="text-sm text-gray-500">Contact: Rahul Sharma | Vendor ID: VEND-4019</p>
+            <h1 className="text-2xl font-bold text-gray-900 mt-2">
+              {currentUser.username || currentUser.name || 'Vendor Partner'}
+            </h1>
+            <p className="text-sm text-gray-500">
+              Email: {currentUser.email || 'vendor@urbanfurniture.com'} | Vendor ID: #{currentUser.contactId || 'PORTAL'}
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-bold">
-              AF
+            <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-sm">
+              {(currentUser.username || currentUser.name || 'V').charAt(0).toUpperCase()}
             </div>
+            {typeof onLogout === 'function' && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
 
@@ -199,8 +252,8 @@ export default function VendorDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredBills.length > 0 ? (
-                  filteredBills.map((bill) => (
+                {paginatedBills.length > 0 ? (
+                  paginatedBills.map((bill) => (
                     <tr key={bill.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-semibold text-emerald-600">{bill.id}</td>
                       <td className="px-6 py-4 text-gray-600">{bill.poReference}</td>
@@ -238,6 +291,33 @@ export default function VendorDashboard() {
               </tbody>
             </table>
           </div>
+
+          {/* Table Pagination Controls */}
+          {filteredBills.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50/70 border-t border-gray-100">
+              <span className="text-xs text-gray-500 font-medium">
+                Showing page {currentPage} of {totalPages} ({filteredBills.length} bills)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  ← Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bill Detail Modal */}

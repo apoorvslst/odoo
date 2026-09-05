@@ -607,14 +607,14 @@
 .profile-menu {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .profile-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--odoo-purple), #9333ea);
+  background: linear-gradient(135deg, var(--odoo-purple, #714B67), #9333ea);
   color: #fff;
   display: flex;
   align-items: center;
@@ -622,12 +622,26 @@
   font-weight: 700;
   font-size: 0.95rem;
   text-transform: uppercase;
+  box-shadow: 0 2px 6px rgba(113, 75, 103, 0.3);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .profile-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1.1;
+}
+
+.profile-badge {
+  font-size: 0.7rem;
+  color: #16a34a;
+  text-transform: capitalize;
   font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-main);
 }
 
 .btn-logout {
@@ -645,17 +659,4 @@
 .btn-logout:hover {
   background: #fef2f2;
   border-color: #ef4444;
-}
-
-/* ── Dashboard Topbar ── */
-.dashboard-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  background: #fff;
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }

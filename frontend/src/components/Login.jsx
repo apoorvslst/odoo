@@ -54,13 +54,13 @@ const Login = ({
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
-            const response = await fetch('/api/v1/auth/login', {
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ loginId: sanitizedLoginId, password }),
+                body: JSON.stringify({ email: sanitizedLoginId, password }),
                 signal: controller.signal
             });
 
@@ -98,7 +98,7 @@ const Login = ({
             <section className="login-card" aria-labelledby="login-heading">
 
                 <header className="logo-container">
-                    <h1 id="login-heading" className="logo-title">App LoGo</h1>
+                    <h1 id="login-heading" className="logo-title">Urban Furniture</h1>
                 </header>
 
                 <form onSubmit={handleSubmit} className="login-form" noValidate>
