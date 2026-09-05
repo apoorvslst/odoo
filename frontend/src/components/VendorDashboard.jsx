@@ -1,46 +1,102 @@
 import React, { useState } from 'react';
 
-// Sample data for vendor purchase bills
-const INITIAL_BILLS = [
+// Sample initial data for vendor purchase bills
+const INITIAL_LOCAL_BILLS = [
   {
     id: 'BILL-2026-101',
+    billNo: 'BILL-2026-101',
+    vendor: 'Azure Furniture Suppliers',
     poReference: 'PO-2026-005',
     date: '2026-08-20',
+    billDate: '2026-08-20',
     dueDate: '2026-09-05',
     items: [
       { name: 'Raw Teak Wood', quantity: 20, unitPrice: 150, tax: 18 },
       { name: 'Steel Joints', quantity: 50, unitPrice: 10, tax: 18 }
     ],
     amount: 4130.00,
-    status: 'Pending', // Status: Paid, Pending, Overdue
+    total: 4130.00,
+    status: 'Pending',
+    paymentStatus: 'Not Paid'
   },
   {
     id: 'BILL-2026-102',
+    billNo: 'BILL-2026-102',
+    vendor: 'Azure Furniture Suppliers',
     poReference: 'PO-2026-008',
     date: '2026-09-01',
+    billDate: '2026-09-01',
     dueDate: '2026-09-20',
     items: [
       { name: 'Sofa Fabrics & Foam', quantity: 10, unitPrice: 300, tax: 18 }
     ],
     amount: 3540.00,
+    total: 3540.00,
     status: 'Pending',
+    paymentStatus: 'Not Paid'
   },
   {
     id: 'BILL-2026-099',
+    billNo: 'BILL-2026-099',
+    vendor: 'Azure Furniture Suppliers',
     poReference: 'PO-2026-001',
     date: '2026-07-15',
+    billDate: '2026-07-15',
     dueDate: '2026-07-30',
     items: [
       { name: 'Plywood Sheets', quantity: 40, unitPrice: 40, tax: 18 }
     ],
     amount: 1888.00,
+    total: 1888.00,
     status: 'Paid',
+    paymentStatus: 'Paid'
   }
 ];
 
-export default function VendorDashboard() {
-  // Store vendor bills list
-  const [bills, setBills] = useState(INITIAL_BILLS);
+/**
+ * VendorDashboard Component
+ * 
+ * Displays all vendor bills & purchase orders created by the accountant (from POs and vendor bills)
+ * with live status, dynamic metrics, and reminder tracking.
+ */
+export default function VendorDashboard({ 
+  sharedBills = [], 
+  vendorBills = [], 
+  purchaseOrders = [],
+  onUpdateBill 
+}) {
+  // Combine shared vendor bills from accountant and local demo bills
+  const incomingBills = (vendorBills.length > 0 ? vendorBills : sharedBills) || [];
+
+  // Normalize incoming bill structures
+  const normalizedIncoming = incomingBills.map((b) => ({
+    id: b.billNo || b.id,
+    originalId: b.id,
+    billNo: b.billNo || b.id,
+    vendor: b.vendor || 'Supplier',
+    poReference: b.billReference || b.poReference || 'Direct Bill',
+    date: b.billDate || b.date || new Date().toISOString().split('T')[0],
+    dueDate: b.dueDate || '2026-10-20',
+    amount: parseFloat(b.total || b.amount || b.amountDue || 0),
+    amountDue: parseFloat(b.amountDue !== undefined ? b.amountDue : (b.paymentStatus === 'Paid' ? 0 : (b.total || b.amount || 0))),
+    status: b.paymentStatus === 'Paid' ? 'Paid' : 'Pending',
+    paymentStatus: b.paymentStatus || (b.status === 'Paid' ? 'Paid' : 'Not Paid'),
+    items: b.lines ? b.lines.map(l => ({
+      name: l.product || 'Supplied Materials',
+      quantity: l.qty || 1,
+      unitPrice: l.unitPrice || l.total || 0,
+      tax: 0
+    })) : (b.items || [{ name: 'Supplied Raw Material', quantity: 1, unitPrice: b.amount || 0, tax: 0 }])
+  }));
+
+  // Maintain local state
+  const [localBills] = useState(INITIAL_LOCAL_BILLS);
+
+  // Combine both, prioritizing accountant-created vendor bills
+  const allBills = [
+    ...normalizedIncoming,
+    ...localBills.filter(loc => !normalizedIncoming.some(inc => inc.id === loc.id))
+  ];
 
   // Status filter state
   const [filterStatus, setFilterStatus] = useState('All');
@@ -55,21 +111,22 @@ export default function VendorDashboard() {
   const [message, setMessage] = useState('');
 
   // Calculate metrics
-  const totalReceivable = bills
+  const totalReceivable = allBills
     .filter(bill => bill.status !== 'Paid')
-    .reduce((acc, bill) => acc + bill.amount, 0);
+    .reduce((acc, bill) => acc + (bill.amountDue > 0 ? bill.amountDue : bill.amount), 0);
 
-  const totalReceived = bills
+  const totalReceived = allBills
     .filter(bill => bill.status === 'Paid')
     .reduce((acc, bill) => acc + bill.amount, 0);
 
-  const totalBilled = bills.reduce((acc, bill) => acc + bill.amount, 0);
+  const totalBilled = allBills.reduce((acc, bill) => acc + bill.amount, 0);
 
   // Filter bills based on search and status
-  const filteredBills = bills.filter(bill => {
+  const filteredBills = allBills.filter(bill => {
     const matchesStatus = filterStatus === 'All' || bill.status === filterStatus;
     const matchesSearch = bill.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.poReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesStatus && matchesSearch;
@@ -77,7 +134,7 @@ export default function VendorDashboard() {
 
   // Mark bill payment request
   const handleRequestPayment = (billId) => {
-    setMessage(`Payment reminder sent for ${billId} to Urban Furniture Accountant.`);
+    setMessage(`Payment reminder sent for ${billId} to Company Finance Department.`);
     setSelectedBill(null);
     setTimeout(() => setMessage(''), 4000);
   };
@@ -97,7 +154,7 @@ export default function VendorDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-bold">
+            <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shadow-md">
               AF
             </div>
           </div>
@@ -105,9 +162,9 @@ export default function VendorDashboard() {
 
         {/* Notification Banner */}
         {message && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg flex items-center justify-between">
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg flex items-center justify-between shadow-sm">
             <span>ℹ️ {message}</span>
-            <button onClick={() => setMessage('')} className="font-bold text-blue-800">×</button>
+            <button onClick={() => setMessage('')} className="font-bold text-blue-800 cursor-pointer">×</button>
           </div>
         )}
 
@@ -117,7 +174,7 @@ export default function VendorDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Payment Due from Buyer</p>
             <h2 className="text-2xl font-extrabold text-amber-600 mt-1">
-              ${totalReceivable.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalReceivable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Awaiting settlement</p>
           </div>
@@ -126,7 +183,7 @@ export default function VendorDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Received</p>
             <h2 className="text-2xl font-extrabold text-emerald-600 mt-1">
-              ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Cleared transactions</p>
           </div>
@@ -135,7 +192,7 @@ export default function VendorDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Billed</p>
             <h2 className="text-2xl font-extrabold text-gray-900 mt-1">
-              ${totalBilled.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalBilled.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Gross supply orders</p>
           </div>
@@ -144,9 +201,9 @@ export default function VendorDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Bills / POs</p>
             <h2 className="text-2xl font-extrabold text-emerald-600 mt-1">
-              {bills.length} Orders
+              {allBills.length} Orders
             </h2>
-            <p className="text-xs text-gray-400 mt-1">{bills.filter(b => b.status === 'Pending').length} pending payment</p>
+            <p className="text-xs text-gray-400 mt-1">{allBills.filter(b => b.status === 'Pending').length} pending settlement</p>
           </div>
         </div>
 
@@ -157,9 +214,9 @@ export default function VendorDashboard() {
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                   filterStatus === status
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -181,8 +238,9 @@ export default function VendorDashboard() {
 
         {/* Vendor Bills Table */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 font-semibold text-gray-800">
-            Vendor Bills & Purchase Orders
+          <div className="p-4 border-b border-gray-100 font-semibold text-gray-800 flex justify-between items-center">
+            <span>Vendor Bills & Purchase Orders</span>
+            <span className="text-xs text-gray-500">{filteredBills.length} records displayed</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -221,7 +279,7 @@ export default function VendorDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => setSelectedBill(bill)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
                         >
                           View Bill Details
                         </button>
@@ -248,11 +306,11 @@ export default function VendorDashboard() {
               <div className="flex justify-between items-start border-b border-gray-100 pb-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Bill: {selectedBill.id}</h3>
-                  <p className="text-xs text-gray-500">PO Reference: {selectedBill.poReference} | Date: {selectedBill.date}</p>
+                  <p className="text-xs text-gray-500">PO Reference: {selectedBill.poReference} | Date: {selectedBill.date} | Due: {selectedBill.dueDate}</p>
                 </div>
                 <button
                   onClick={() => setSelectedBill(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -268,19 +326,17 @@ export default function VendorDashboard() {
                         <th className="p-3">Item Name</th>
                         <th className="p-3">Qty</th>
                         <th className="p-3">Unit Cost</th>
-                        <th className="p-3">Tax Rate</th>
                         <th className="p-3 text-right">Subtotal</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {selectedBill.items.map((item, idx) => {
-                        const itemSubtotal = item.quantity * item.unitPrice * (1 + item.tax / 100);
+                        const itemSubtotal = (item.quantity || 1) * (item.unitPrice || 0);
                         return (
                           <tr key={idx}>
                             <td className="p-3 font-medium text-gray-800">{item.name}</td>
                             <td className="p-3">{item.quantity}</td>
-                            <td className="p-3">${item.unitPrice.toFixed(2)}</td>
-                            <td className="p-3">{item.tax}%</td>
+                            <td className="p-3">${(item.unitPrice || 0).toFixed(2)}</td>
                             <td className="p-3 text-right font-semibold">${itemSubtotal.toFixed(2)}</td>
                           </tr>
                         );
@@ -302,18 +358,22 @@ export default function VendorDashboard() {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setSelectedBill(null)}
-                  className="w-1/2 py-2.5 px-4 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="w-1/2 py-2.5 px-4 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
                 >
                   Close
                 </button>
 
-                {selectedBill.status !== 'Paid' && (
+                {selectedBill.status !== 'Paid' ? (
                   <button
                     onClick={() => handleRequestPayment(selectedBill.id)}
-                    className="w-1/2 py-2.5 px-4 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm"
+                    className="w-1/2 py-2.5 px-4 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm cursor-pointer"
                   >
                     Send Payment Reminder
                   </button>
+                ) : (
+                  <div className="w-1/2 py-2.5 px-4 text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-lg text-center">
+                    ✓ Paid
+                  </div>
                 )}
               </div>
 

@@ -1,113 +1,155 @@
 import React, { useState } from 'react';
 
-// ==========================================
-// MOCK DATA: Initial customer invoices list
-// ==========================================
-const INITIAL_INVOICES = [
+// Initial local invoices for demo
+const INITIAL_LOCAL_INVOICES = [
   {
     id: 'INV-2026-001',
+    invoiceNo: 'INV-2026-001',
+    customer: 'Nimesh Pathak',
     date: '2026-08-15',
+    invoiceDate: '2026-08-15',
     dueDate: '2026-08-30',
     items: [
       { name: 'Office Chair', quantity: 5, unitPrice: 120, tax: 18 },
       { name: 'Wooden Table', quantity: 1, unitPrice: 450, tax: 18 }
     ],
     amount: 1239.00,
-    status: 'Overdue', // Options: 'Paid', 'Pending', 'Overdue'
+    total: 1239.00,
+    status: 'Overdue',
+    paymentStatus: 'Not Paid'
   },
   {
     id: 'INV-2026-002',
+    invoiceNo: 'INV-2026-002',
+    customer: 'Nimesh Pathak',
     date: '2026-09-01',
+    invoiceDate: '2026-09-01',
     dueDate: '2026-09-15',
     items: [
       { name: 'Luxury Sofa Set', quantity: 1, unitPrice: 1500, tax: 18 }
     ],
     amount: 1770.00,
+    total: 1770.00,
     status: 'Pending',
+    paymentStatus: 'Not Paid'
   },
   {
     id: 'INV-2026-003',
+    invoiceNo: 'INV-2026-003',
+    customer: 'Nimesh Pathak',
     date: '2026-07-10',
+    invoiceDate: '2026-07-10',
     dueDate: '2026-07-25',
     items: [
       { name: 'Dining Table', quantity: 1, unitPrice: 800, tax: 18 },
       { name: 'Chairs', quantity: 4, unitPrice: 100, tax: 18 }
     ],
     amount: 1416.00,
+    total: 1416.00,
     status: 'Paid',
+    paymentStatus: 'Paid'
   }
 ];
 
-export default function CustomerDashboard() {
-  // ------------------------------------------
-  // STATE MANAGEMENT (Simple and easy to track)
-  // ------------------------------------------
-  // 1. Store list of customer invoices
-  const [invoices, setInvoices] = useState(INITIAL_INVOICES);
+/**
+ * CustomerDashboard Component
+ * 
+ * Displays all sales invoices created by the accountant (from Sales Orders & manual invoices)
+ * alongside customer orders with live status, dynamic metrics, and payment processing.
+ */
+export default function CustomerDashboard({ 
+  sharedInvoices = [], 
+  customerInvoices = [], 
+  salesOrders = [],
+  onPayInvoice 
+}) {
+  // Combine shared invoices from accountant and local demo invoices
+  const incomingInvoices = (customerInvoices.length > 0 ? customerInvoices : sharedInvoices) || [];
 
-  // 2. Filter state: 'All', 'Pending', 'Paid', 'Overdue'
+  // Normalize all invoice structures into a clean unified list
+  const normalizedIncoming = incomingInvoices.map((inv) => ({
+    id: inv.invoiceNo || inv.id,
+    originalId: inv.id,
+    invoiceNo: inv.invoiceNo || inv.id,
+    customer: inv.customer || 'Customer',
+    date: inv.invoiceDate || inv.date || new Date().toISOString().split('T')[0],
+    dueDate: inv.dueDate || '2026-10-15',
+    amount: parseFloat(inv.total || inv.amount || inv.amountDue || 0),
+    amountDue: parseFloat(inv.amountDue !== undefined ? inv.amountDue : (inv.paymentStatus === 'Paid' ? 0 : (inv.total || inv.amount || 0))),
+    status: inv.paymentStatus === 'Paid' ? 'Paid' : (inv.status === 'Overdue' ? 'Overdue' : 'Pending'),
+    paymentStatus: inv.paymentStatus || (inv.status === 'Paid' ? 'Paid' : 'Not Paid'),
+    items: inv.lines ? inv.lines.map(l => ({
+      name: l.product || 'Standard Product',
+      quantity: l.qty || 1,
+      unitPrice: l.unitPrice || l.total || 0,
+      tax: 0
+    })) : (inv.items || [{ name: 'General Supply Item', quantity: 1, unitPrice: inv.amount || 0, tax: 0 }])
+  }));
+
+  // Maintain local state list that updates in real time
+  const [localInvoices, setLocalInvoices] = useState(INITIAL_LOCAL_INVOICES);
+
+  // Combine both: prioritize accountant-created invoices
+  const allInvoices = [
+    ...normalizedIncoming,
+    ...localInvoices.filter(loc => !normalizedIncoming.some(inc => inc.id === loc.id))
+  ];
+
+  // Filter state: 'All', 'Pending', 'Paid', 'Overdue'
   const [filterStatus, setFilterStatus] = useState('All');
 
-  // 3. Search query state
+  // Search query state
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 4. Modal state for viewing invoice details & paying
+  // Modal state for viewing invoice details & paying
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  // 5. Selected payment method inside modal
+  // Selected payment method inside modal
   const [paymentMethod, setPaymentMethod] = useState('Bank');
 
-  // 6. Simulation success alert message
+  // Simulation success alert message
   const [successMsg, setSuccessMsg] = useState('');
 
-  // ------------------------------------------
   // CALCULATE DASHBOARD METRICS (Dynamic Totals)
-  // ------------------------------------------
-  const totalInvoiced = invoices.reduce((acc, inv) => acc + inv.amount, 0);
-  
-  const totalOutstanding = invoices
-    .filter(inv => inv.status !== 'Paid')
-    .reduce((acc, inv) => acc + inv.amount, 0);
+  const totalInvoiced = allInvoices.reduce((acc, inv) => acc + inv.amount, 0);
 
-  const totalPaid = invoices
+  const totalOutstanding = allInvoices
+    .filter(inv => inv.status !== 'Paid')
+    .reduce((acc, inv) => acc + (inv.amountDue > 0 ? inv.amountDue : inv.amount), 0);
+
+  const totalPaid = allInvoices
     .filter(inv => inv.status === 'Paid')
     .reduce((acc, inv) => acc + inv.amount, 0);
 
-  // ------------------------------------------
   // FILTER & SEARCH INVOICES
-  // ------------------------------------------
-  const filteredInvoices = invoices.filter(inv => {
-    // Filter by status tab
+  const filteredInvoices = allInvoices.filter(inv => {
     const matchesStatus = filterStatus === 'All' || inv.status === filterStatus;
-    // Filter by search text (ID or Item name)
     const matchesSearch = inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     return matchesStatus && matchesSearch;
   });
 
-  // ------------------------------------------
-  // HANDLER: REGISTER PAYMENT (Simulates making a payment)
-  // ------------------------------------------
+  // HANDLER: REGISTER PAYMENT
   const handleMakePayment = (invoiceId) => {
-    // Update invoice status from 'Pending'/'Overdue' to 'Paid'
-    setInvoices(prevInvoices =>
-      prevInvoices.map(inv =>
-        inv.id === invoiceId ? { ...inv, status: 'Paid' } : inv
+    // 1. Update local state
+    setLocalInvoices(prev =>
+      prev.map(inv =>
+        inv.id === invoiceId ? { ...inv, status: 'Paid', paymentStatus: 'Paid', amountDue: 0 } : inv
       )
     );
 
-    // Close the modal
-    setSelectedInvoice(null);
+    // 2. Notify parent App to update accountant state in real-time
+    if (onPayInvoice) {
+      onPayInvoice(invoiceId, paymentMethod);
+    }
 
-    // Display temporary success banner
-    setSuccessMsg(`Payment for ${invoiceId} registered successfully via ${paymentMethod}!`);
-    setTimeout(() => setSuccessMsg(''), 4000);
+    setSelectedInvoice(null);
+    setSuccessMsg(`Payment for ${invoiceId} registered successfully via ${paymentMethod}! Updated in Accountant Books.`);
+    setTimeout(() => setSuccessMsg(''), 5000);
   };
 
-  // ------------------------------------------
-  // RENDER UI
-  // ------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 p-6 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -118,22 +160,22 @@ export default function CustomerDashboard() {
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
               Customer Portal
             </span>
-            <h1 className="text-2xl font-bold text-gray-900 mt-2">Welcome back, Nimesh Pathak</h1>
-            <p className="text-sm text-gray-500">Email: nimesh@example.com | Contact ID: CUST-8092</p>
+            <h1 className="text-2xl font-bold text-gray-900 mt-2">Welcome, Customer Portal</h1>
+            <p className="text-sm text-gray-500">Live synchronized invoices and sales orders from the accounting department.</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-bold">
-              NP
+            <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-bold shadow-md">
+              CP
             </div>
           </div>
         </div>
 
         {/* NOTIFICATION BANNER */}
         {successMsg && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center justify-between">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg flex items-center justify-between shadow-sm">
             <span>✅ {successMsg}</span>
-            <button onClick={() => setSuccessMsg('')} className="font-bold text-emerald-800 hover:text-emerald-900">×</button>
+            <button onClick={() => setSuccessMsg('')} className="font-bold text-emerald-800 hover:text-emerald-900 cursor-pointer">×</button>
           </div>
         )}
 
@@ -143,7 +185,7 @@ export default function CustomerDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Outstanding Balance</p>
             <h2 className="text-2xl font-extrabold text-amber-600 mt-1">
-              ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Amount remaining to be paid</p>
           </div>
@@ -152,7 +194,7 @@ export default function CustomerDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Paid</p>
             <h2 className="text-2xl font-extrabold text-emerald-600 mt-1">
-              ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Cleared payments</p>
           </div>
@@ -161,33 +203,31 @@ export default function CustomerDashboard() {
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Invoiced</p>
             <h2 className="text-2xl font-extrabold text-gray-900 mt-1">
-              ${totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
             <p className="text-xs text-gray-400 mt-1">Lifetime billing history</p>
           </div>
 
-          {/* Card 4: Total Invoices Count */}
+          {/* Card 4: Invoices Count */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
             <p className="text-sm font-medium text-gray-500">Total Invoices</p>
             <h2 className="text-2xl font-extrabold text-indigo-600 mt-1">
-              {invoices.length} Records
+              {allInvoices.length} Invoices
             </h2>
-            <p className="text-xs text-gray-400 mt-1">{invoices.filter(i => i.status === 'Pending').length} pending action</p>
+            <p className="text-xs text-gray-400 mt-1">{allInvoices.filter(i => i.status !== 'Paid').length} pending payment</p>
           </div>
         </div>
 
-        {/* 3. CONTROLS: FILTERS & SEARCH */}
+        {/* 3. FILTERS & SEARCH */}
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-          
-          {/* Status Tabs */}
           <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             {['All', 'Pending', 'Overdue', 'Paid'].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                   filterStatus === status
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-indigo-600 text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -196,11 +236,10 @@ export default function CustomerDashboard() {
             ))}
           </div>
 
-          {/* Search Bar */}
           <div className="w-full md:w-72">
             <input
               type="text"
-              placeholder="Search by Invoice ID or product..."
+              placeholder="Search by Invoice ID or item..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -210,8 +249,9 @@ export default function CustomerDashboard() {
 
         {/* 4. INVOICES LIST TABLE */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 font-semibold text-gray-800">
-            My Invoices & Bills
+          <div className="p-4 border-b border-gray-100 font-semibold text-gray-800 flex justify-between items-center">
+            <span>Customer Sales Invoices</span>
+            <span className="text-xs text-gray-500">{filteredInvoices.length} records displayed</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -219,6 +259,7 @@ export default function CustomerDashboard() {
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-xs">
                 <tr>
                   <th className="px-6 py-3">Invoice #</th>
+                  <th className="px-6 py-3">Customer</th>
                   <th className="px-6 py-3">Issue Date</th>
                   <th className="px-6 py-3">Due Date</th>
                   <th className="px-6 py-3">Total Amount</th>
@@ -231,13 +272,13 @@ export default function CustomerDashboard() {
                   filteredInvoices.map((inv) => (
                     <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-semibold text-indigo-600">{inv.id}</td>
+                      <td className="px-6 py-4 text-gray-700">{inv.customer}</td>
                       <td className="px-6 py-4 text-gray-600">{inv.date}</td>
                       <td className="px-6 py-4 text-gray-600">{inv.dueDate}</td>
                       <td className="px-6 py-4 font-bold text-gray-900">
                         ${inv.amount.toFixed(2)}
                       </td>
                       <td className="px-6 py-4">
-                        {/* Status Badges */}
                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                           inv.status === 'Paid'
                             ? 'bg-emerald-100 text-emerald-700'
@@ -251,10 +292,10 @@ export default function CustomerDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => setSelectedInvoice(inv)}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-md text-white transition-colors ${
+                          className={`px-3 py-1.5 text-xs font-medium rounded-md text-white transition-colors cursor-pointer ${
                             inv.status === 'Paid'
                               ? 'bg-gray-700 hover:bg-gray-800'
-                              : 'bg-indigo-600 hover:bg-indigo-700'
+                              : 'bg-indigo-600 hover:bg-indigo-700 shadow-sm'
                           }`}
                         >
                           {inv.status === 'Paid' ? 'View Details' : 'View & Pay'}
@@ -264,7 +305,7 @@ export default function CustomerDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="text-center py-8 text-gray-400">
+                    <td colSpan="7" className="text-center py-8 text-gray-400">
                       No invoices found matching your criteria.
                     </td>
                   </tr>
@@ -283,11 +324,11 @@ export default function CustomerDashboard() {
               <div className="flex justify-between items-start border-b border-gray-100 pb-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Invoice: {selectedInvoice.id}</h3>
-                  <p className="text-xs text-gray-500">Issued on {selectedInvoice.date} | Due on {selectedInvoice.dueDate}</p>
+                  <p className="text-xs text-gray-500">Customer: {selectedInvoice.customer} | Issued: {selectedInvoice.date} | Due: {selectedInvoice.dueDate}</p>
                 </div>
                 <button
                   onClick={() => setSelectedInvoice(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -303,19 +344,17 @@ export default function CustomerDashboard() {
                         <th className="p-3">Product Name</th>
                         <th className="p-3">Qty</th>
                         <th className="p-3">Unit Price</th>
-                        <th className="p-3">Tax Rate</th>
                         <th className="p-3 text-right">Subtotal</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {selectedInvoice.items.map((item, idx) => {
-                        const itemSubtotal = item.quantity * item.unitPrice * (1 + item.tax / 100);
+                        const itemSubtotal = (item.quantity || 1) * (item.unitPrice || 0);
                         return (
                           <tr key={idx}>
                             <td className="p-3 font-medium text-gray-800">{item.name}</td>
                             <td className="p-3">{item.quantity}</td>
-                            <td className="p-3">${item.unitPrice.toFixed(2)}</td>
-                            <td className="p-3">{item.tax}%</td>
+                            <td className="p-3">${(item.unitPrice || 0).toFixed(2)}</td>
                             <td className="p-3 text-right font-semibold">${itemSubtotal.toFixed(2)}</td>
                           </tr>
                         );
@@ -342,9 +381,9 @@ export default function CustomerDashboard() {
                       <button
                         key={method}
                         onClick={() => setPaymentMethod(method)}
-                        className={`p-3 text-xs font-medium border rounded-lg flex flex-col items-center gap-1 ${
+                        className={`p-3 text-xs font-medium border rounded-lg flex flex-col items-center gap-1 cursor-pointer transition ${
                           paymentMethod === method
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold'
+                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 font-bold shadow-sm'
                             : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
                       >
@@ -357,13 +396,13 @@ export default function CustomerDashboard() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={() => setSelectedInvoice(null)}
-                      className="w-1/2 py-2.5 px-4 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      className="w-1/2 py-2.5 px-4 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={() => handleMakePayment(selectedInvoice.id)}
-                      className="w-1/2 py-2.5 px-4 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      className="w-1/2 py-2.5 px-4 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
                     >
                       Pay ${selectedInvoice.amount.toFixed(2)} Now
                     </button>
