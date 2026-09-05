@@ -3,19 +3,43 @@ import Login from './Login';
 import SignUp from './SignUp';
 import AdminLogin from './AdminLogin';
 import ConsumerLogin from './ConsumerLogin';
+import CustomerDashboard from './CustomerDashboard';
+import VendorDashboard from './VendorDashboard';
 import '../styles/App.css';
 
 const VIEW = {
-  LANDING:         'landing',
-  LOGIN_SELECT:    'login_select',   // portal-choice screen
-  LOGIN:           'login',          // original generic login (kept for backward compat)
-  ADMIN_LOGIN:     'admin_login',
-  CONSUMER_LOGIN:  'consumer_login',
-  SIGNUP:          'signup',
+  LANDING:            'landing',
+  LOGIN_SELECT:       'login_select',
+  LOGIN:              'login',
+  ADMIN_LOGIN:        'admin_login',
+  CONSUMER_LOGIN:     'consumer_login',
+  SIGNUP:             'signup',
+  CUSTOMER_DASHBOARD: 'customer_dashboard',
+  VENDOR_DASHBOARD:   'vendor_dashboard',
 };
 
 export default function App() {
   const [currentView, setCurrentView] = useState(VIEW.LANDING);
+  const [user, setUser] = useState(null);
+
+  // Handles logout — clears user and goes back to landing
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentView(VIEW.LANDING);
+  };
+
+  // Handles login success — stores user data and navigates to dashboard
+  const handleLoginSuccess = (data) => {
+    setUser(data.user);
+    const role = data.user?.role;
+    if (role === 'admin') {
+      setCurrentView(VIEW.LANDING);
+    } else if (role === 'user') {
+      setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+    } else {
+      setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+    }
+  };
 
   /* ── Back button (reused across auth screens) ── */
   const FloatingBack = ({ to = VIEW.LANDING, label = '← Back' }) => (
@@ -78,15 +102,47 @@ export default function App() {
     );
   }
 
+  /* ── Customer Dashboard ── */
+  if (currentView === VIEW.CUSTOMER_DASHBOARD && user) {
+    return (
+      <div className="view-wrapper">
+        <div className="dashboard-topbar">
+          <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
+          <div className="profile-menu">
+            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
+            <span className="profile-name">{user.name || user.login_id}</span>
+            <button className="btn-logout" onClick={handleLogout}>Logout</button>
+          </div>
+        </div>
+        <CustomerDashboard />
+      </div>
+    );
+  }
+
+  /* ── Vendor Dashboard ── */
+  if (currentView === VIEW.VENDOR_DASHBOARD && user) {
+    return (
+      <div className="view-wrapper">
+        <div className="dashboard-topbar">
+          <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
+          <div className="profile-menu">
+            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
+            <span className="profile-name">{user.name || user.login_id}</span>
+            <button className="btn-logout" onClick={handleLogout}>Logout</button>
+          </div>
+        </div>
+        <VendorDashboard />
+      </div>
+    );
+  }
+
   /* ── Admin Login ── */
   if (currentView === VIEW.ADMIN_LOGIN) {
     return (
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LOGIN_SELECT} label="← Choose Portal" />
         <AdminLogin
-          onLoginSuccess={(data) => {
-            window.location.assign(data?.redirectUrl || '/admin/dashboard');
-          }}
+          onLoginSuccess={handleLoginSuccess}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link dispatched to your admin account.')
@@ -102,9 +158,7 @@ export default function App() {
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LOGIN_SELECT} label="← Choose Portal" />
         <ConsumerLogin
-          onLoginSuccess={(data) => {
-            window.location.assign(data?.redirectUrl || '/consumer/portal');
-          }}
+          onLoginSuccess={handleLoginSuccess}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link dispatched to your consumer account.')
@@ -120,9 +174,7 @@ export default function App() {
       <div className="view-wrapper">
         <FloatingBack to={VIEW.LANDING} label="← Back to Overview" />
         <Login
-          onLoginSuccess={(data) => {
-            window.location.assign(data?.redirectUrl || '/dashboard');
-          }}
+          onLoginSuccess={handleLoginSuccess}
           onNavigateToSignUp={() => setCurrentView(VIEW.SIGNUP)}
           onNavigateToForgotPassword={() =>
             alert('Password reset link has been dispatched to your administrator.')
@@ -168,20 +220,30 @@ export default function App() {
         </nav>
 
         <div className="header-actions">
-          <button
-            type="button"
-            onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}
-            className="btn-header-signin"
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentView(VIEW.SIGNUP)}
-            className="btn-header-try"
-          >
-            Try it free
-          </button>
+          {user ? (
+            <div className="profile-menu">
+              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
+              <span className="profile-name">{user.name || user.login_id}</span>
+              <button type="button" onClick={handleLogout} className="btn-logout">Logout</button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setCurrentView(VIEW.LOGIN_SELECT)}
+                className="btn-header-signin"
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentView(VIEW.SIGNUP)}
+                className="btn-header-try"
+              >
+                Try it free
+              </button>
+            </>
+          )}
         </div>
       </header>
 

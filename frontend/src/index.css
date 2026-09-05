@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* Global reset — Login and SignUp components handle all their own styling */
 *, *::before, *::after {
   box-sizing: border-box;
