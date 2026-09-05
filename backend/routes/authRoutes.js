@@ -5,7 +5,9 @@ const { signup, signin, createUser } = require('../controllers/authController');
 const { authenticateToken, adminOnly } = require('../middlewares/auth');
 const { signupSchema, signinSchema, createUserSchema } = require('../validators/authValidator');
 
-// Middleware: validates request body using a Zod schema
+// A reusable middleware factory that takes a Zod schema.
+// Runs safeParse on the request body — if it fails, returns the first error.
+// If it passes, calls next() to continue to the controller.
 function validate(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);
