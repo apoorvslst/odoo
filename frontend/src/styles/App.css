@@ -659,3 +659,39 @@
   top: 0;
   z-index: 100;
 }
+
+.portal-card-vendor {
+  border-top: 4px solid #059669;
+}
+
+.portal-card-vendor:hover {
+  border-color: #059669;
+  box-shadow: 0 12px 28px rgba(5, 150, 105, 0.15);
+}
+
+.portal-card-vendor .portal-card-cta {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35);
+}
+
+.portal-card-vendor:hover .portal-card-cta {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-header-dashboard {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--odoo-purple);
+  background: var(--odoo-purple-light);
+  color: var(--odoo-purple);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-header-dashboard:hover {
+  background: var(--odoo-purple);
+  color: #fff;
+}

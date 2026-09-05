@@ -31,11 +31,11 @@ export default function App() {
   // Handles login success — stores user data and navigates to dashboard
   const handleLoginSuccess = (data) => {
     setUser(data.user);
-    const role = data.user?.role;
+    const role = (data.user?.role || '').toLowerCase();
     if (role === 'admin') {
       setCurrentView(VIEW.LANDING);
-    } else if (role === 'user') {
-      setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+    } else if (role === 'vendor') {
+      setCurrentView(VIEW.VENDOR_DASHBOARD);
     } else {
       setCurrentView(VIEW.CUSTOMER_DASHBOARD);
     }
@@ -97,22 +97,43 @@ export default function App() {
             </span>
             <span className="portal-card-cta">Sign In →</span>
           </div>
+
+          {/* Vendor card */}
+          <div
+            className="portal-card portal-card-vendor"
+            onClick={() => setCurrentView(VIEW.VENDOR_DASHBOARD)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setCurrentView(VIEW.VENDOR_DASHBOARD)}
+            aria-label="Vendor Portal"
+          >
+            <div className="portal-card-icon">🏭</div>
+            <span className="portal-card-label">Vendor Portal</span>
+            <span className="portal-card-desc">
+              Manage purchase bills, vendor orders &amp; payments
+            </span>
+            <span className="portal-card-cta">View Portal →</span>
+          </div>
         </div>
       </div>
     );
   }
 
   /* ── Customer Dashboard ── */
-  if (currentView === VIEW.CUSTOMER_DASHBOARD && user) {
+  if (currentView === VIEW.CUSTOMER_DASHBOARD) {
     return (
       <div className="view-wrapper">
         <div className="dashboard-topbar">
           <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
-          <div className="profile-menu">
-            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
-            <span className="profile-name">{user.name || user.login_id}</span>
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
-          </div>
+          {user ? (
+            <div className="profile-menu">
+              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : (user.login_id ? user.login_id[0].toUpperCase() : 'C')}</div>
+              <span className="profile-name">{user.name || user.login_id}</span>
+              <button className="btn-logout" onClick={handleLogout}>Logout</button>
+            </div>
+          ) : (
+            <button className="btn-logout" onClick={() => setCurrentView(VIEW.CONSUMER_LOGIN)}>Sign In</button>
+          )}
         </div>
         <CustomerDashboard />
       </div>
@@ -120,16 +141,20 @@ export default function App() {
   }
 
   /* ── Vendor Dashboard ── */
-  if (currentView === VIEW.VENDOR_DASHBOARD && user) {
+  if (currentView === VIEW.VENDOR_DASHBOARD) {
     return (
       <div className="view-wrapper">
         <div className="dashboard-topbar">
           <button className="btn-floating-back" onClick={() => setCurrentView(VIEW.LANDING)}>← Back</button>
-          <div className="profile-menu">
-            <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
-            <span className="profile-name">{user.name || user.login_id}</span>
-            <button className="btn-logout" onClick={handleLogout}>Logout</button>
-          </div>
+          {user ? (
+            <div className="profile-menu">
+              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : (user.login_id ? user.login_id[0].toUpperCase() : 'V')}</div>
+              <span className="profile-name">{user.name || user.login_id}</span>
+              <button className="btn-logout" onClick={handleLogout}>Logout</button>
+            </div>
+          ) : (
+            <button className="btn-logout" onClick={() => setCurrentView(VIEW.CONSUMER_LOGIN)}>Sign In</button>
+          )}
         </div>
         <VendorDashboard />
       </div>
@@ -222,7 +247,21 @@ export default function App() {
         <div className="header-actions">
           {user ? (
             <div className="profile-menu">
-              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : user.login_id[0].toUpperCase()}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  const role = (user.role || '').toLowerCase();
+                  if (role === 'vendor') {
+                    setCurrentView(VIEW.VENDOR_DASHBOARD);
+                  } else {
+                    setCurrentView(VIEW.CUSTOMER_DASHBOARD);
+                  }
+                }}
+                className="btn-header-dashboard"
+              >
+                Dashboard
+              </button>
+              <div className="profile-avatar">{user.name ? user.name[0].toUpperCase() : (user.login_id ? user.login_id[0].toUpperCase() : 'U')}</div>
               <span className="profile-name">{user.name || user.login_id}</span>
               <button type="button" onClick={handleLogout} className="btn-logout">Logout</button>
             </div>
