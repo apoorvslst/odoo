@@ -10,7 +10,9 @@ const { JWT_SECRET } = require('../middlewares/auth');
 // New users get 'accountant' role by default.
 const signup = async (req, res) => {
   try {
-    const { login_id, email, password } = req.body;
+    const login_id = req.body.login_id || req.body.loginId;
+    const email = req.body.email;
+    const password = req.body.password;
 
     // Check if login_id already exists
     const existingLogin = await pool.query('SELECT id FROM users WHERE login_id = $1', [login_id]);
@@ -45,7 +47,8 @@ const signup = async (req, res) => {
 // If they match, creates and returns a JWT token (valid 24h).
 const signin = async (req, res) => {
   try {
-    const { login_id, password } = req.body;
+    const login_id = req.body.login_id || req.body.loginId;
+    const password = req.body.password;
 
     // Find the user
     const result = await pool.query('SELECT * FROM users WHERE login_id = $1', [login_id]);

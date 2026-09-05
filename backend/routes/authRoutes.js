@@ -23,8 +23,9 @@ function validate(schema) {
 // POST /api/signup   → Public registration (creates "accountant" role)
 router.post('/signup', validate(signupSchema), signup);
 
-// POST /api/signin   → Login
+// POST /api/v1/auth/signin or /login   → Login
 router.post('/signin', validate(signinSchema), signin);
+router.post('/login', validate(signinSchema), signin);
 
 // POST /api/users    → Admin creates a new user (protected)
 router.post('/users', authenticateToken, adminOnly, validate(createUserSchema), createUser);

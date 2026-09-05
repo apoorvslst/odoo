@@ -1,29 +1,31 @@
 // validators/authValidator.js - Simple Zod schemas
 const { z } = require('zod');
 
-// Validates signup input.
-// login_id must be 6-12 chars, email must be valid, password min 8 chars.
+// --- SIGNUP ---
+// Accepts both loginId (frontend) and login_id (backend)
 const signupSchema = z.object({
-  login_id: z.string().min(6).max(12),
+  login_id: z.string().min(6).max(12).optional(),
+  loginId: z.string().min(6).max(12).optional(),
   email: z.string().email(),
   password: z.string().min(8),
-});
+}).refine(data => data.login_id || data.loginId, { message: 'Login Id is required' });
 
-// Validates signin input.
-// Just checks that login_id and password are not empty.
+// --- SIGNIN ---
 const signinSchema = z.object({
-  login_id: z.string().min(1),
+  login_id: z.string().min(1).optional(),
+  loginId: z.string().min(1).optional(),
   password: z.string().min(1),
-});
+}).refine(data => data.login_id || data.loginId, { message: 'Login Id is required' });
 
-// Validates create user input (admin only).
-// Same rules as signup + requires a name and a valid role.
+// --- CREATE USER (admin) ---
 const createUserSchema = z.object({
   name: z.string().min(1),
-  login_id: z.string().min(6).max(12),
+  login_id: z.string().min(6).max(12).optional(),
+  loginId: z.string().min(6).max(12).optional(),
   email: z.string().email(),
   password: z.string().min(8),
   role: z.enum(['admin', 'accountant', 'user']),
-});
+}).refine(data => data.login_id || data.loginId, { message: 'Login Id is required' });
 
 module.exports = { signupSchema, signinSchema, createUserSchema };
+

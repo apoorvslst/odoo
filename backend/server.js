@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(cors());
 
 // --- Routes ---
-app.use("/api", authRoutes);
+app.use("/api/v1/auth", authRoutes);
 
 // --- Database connection check ---
 async function testDb() {
