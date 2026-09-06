@@ -164,6 +164,15 @@ const budgetLines = pgTable("budget_lines", {
   plannedAmount: numeric("planned_amount", { precision: 15, scale: 2 }).notNull(),
 });
 
+const contactMessages = pgTable("contact_messages", {
+  id: serial("id").primaryKey(),
+  contactId: integer("contact_id").notNull().references(() => contacts.id),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("unread"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 module.exports = {
   contacts,
   users,
@@ -180,4 +189,5 @@ module.exports = {
   payments,
   budgets,
   budgetLines,
+  contactMessages,
 };

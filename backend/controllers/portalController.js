@@ -1,12 +1,11 @@
 const { eq, and, desc, sql } = require("drizzle-orm");
 const { db } = require("../db");
-const { invoices, payments } = require("../db/schema");
+const { invoices, payments, contacts, invoiceLines, products, contactMessages } = require("../db/schema");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { recordPayment } = require("../services/paymentService");
 const { createDraft, postInvoice } = require("../services/invoiceService");
 const { round2 } = require("../utils/money");
-const { contacts } = require("../db/schema");
 
 // Portal = what a contact user sees. Everything is scoped to req.user.contactId
 // (from the JWT), so a contact can never touch another contact's documents.
@@ -96,31 +95,69 @@ const checkoutStore = asyncHandler(async (req, res) => {
   
   if (!cartItems || !cartItems.length) throw new ApiError(400, "Cart is empty");
   
-  // 2. Create the draft sales invoice
   const today = new Date().toISOString().split("T")[0];
-  const draft = await createDraft({
+  const invoicePayload = {
     kind: "invoice",
     contactId: req.user.contactId,
     date: today,
     dueDate: today,
     lines: cartItems,
-  });
+  };
+
+  // 2. Create Draft Invoice (DO NOT POST)
+  const draft = await createDraft(invoicePayload);
   
-  // 3. Auto-post the invoice (since it's a direct web sale)
-  const posted = await postInvoice({ invoiceId: draft.id, userId: req.user.id });
-  
-  // 4. Record the payment if one was made
-  let paymentRecord = null;
-  if (paymentAmount > 0) {
-    paymentRecord = await recordPayment({
-      invoiceId: posted.invoice.id,
-      amount: paymentAmount,
-      method: paymentMethod,
-      userId: req.user.id,
-    });
-  }
-  
-  res.status(201).json({ invoice: posted.invoice, payment: paymentRecord });
+  // Return the draft invoice (pending admin approval)
+  res.status(201).json({ invoice: draft, payment: null });
 });
 
-module.exports = { listMyDocuments, getMyDocument, payMyDocument, checkoutStore };
+const listMyLines = asyncHandler(async (req, res) => {
+  const rows = await db
+    .select({
+      id: invoiceLines.id,
+      date: invoices.date,
+      invoiceId: invoices.id,
+      productName: products.name,
+      description: invoiceLines.description,
+      quantity: invoiceLines.quantity,
+      unitPrice: invoiceLines.unitPrice,
+      total: sql`(${invoiceLines.quantity} * ${invoiceLines.unitPrice})`
+    })
+    .from(invoiceLines)
+    .innerJoin(invoices, eq(invoices.id, invoiceLines.invoiceId))
+    .leftJoin(products, eq(products.id, invoiceLines.productId))
+    .where(eq(invoices.contactId, req.user.contactId))
+    .orderBy(desc(invoices.date));
+    
+  res.json(rows.map(r => ({
+    ...r,
+    quantity: Number(r.quantity),
+    unitPrice: round2(Number(r.unitPrice)),
+    total: round2(Number(r.total))
+  })));
+});
+
+const sendMessage = asyncHandler(async (req, res) => {
+  const { subject, message } = req.body || {};
+  if (!subject || !message) throw new ApiError(400, "Subject and message are required");
+  
+  const [msg] = await db.insert(contactMessages).values({
+    contactId: req.user.contactId,
+    subject,
+    message
+  }).returning();
+  
+  res.status(201).json(msg);
+});
+
+const approveDocument = asyncHandler(async (req, res) => {
+  const [doc] = await db.select().from(invoices).where(eq(invoices.id, req.params.id));
+  if (!doc) throw new ApiError(404, "Document not found");
+  if (doc.contactId !== req.user.contactId) throw new ApiError(403, "Access denied");
+  if (doc.status !== "draft") throw new ApiError(400, "Only draft documents can be approved");
+  
+  await postInvoice(doc.id);
+  res.json({ success: true, message: "Document approved successfully" });
+});
+
+module.exports = { listMyDocuments, getMyDocument, payMyDocument, checkoutStore, listMyLines, sendMessage, approveDocument };
