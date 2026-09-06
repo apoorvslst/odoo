@@ -9,7 +9,7 @@ const { INVOICE_KINDS } = require("../utils/constants");
 const { round2 } = require("../utils/money");
 
 const list = asyncHandler(async (req, res) => {
-  const { kind, status } = req.query;
+  const { kind, status, page, limit } = req.query;
   if (kind && !INVOICE_KINDS.includes(kind)) {
     throw new ApiError(400, `kind must be one of: ${INVOICE_KINDS.join(", ")}`);
   }
@@ -45,17 +45,37 @@ const list = asyncHandler(async (req, res) => {
     .groupBy(invoices.id, contacts.name)
     .orderBy(desc(invoices.id));
 
-  const rows = conditions.length ? await base.where(and(...conditions)) : await base;
-  res.json(
-    rows.map((r) => ({
-      ...r,
-      subtotal: Number(r.subtotal),
-      taxAmount: Number(r.taxAmount),
-      totalAmount: Number(r.totalAmount),
-      paid: round2(Number(r.paid)),
-      balanceDue: round2(Number(r.totalAmount) - Number(r.paid)),
-    }))
-  );
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+  const rows = whereClause ? await base.where(whereClause) : await base;
+
+  const formattedRows = rows.map((r) => ({
+    ...r,
+    subtotal: Number(r.subtotal),
+    taxAmount: Number(r.taxAmount),
+    totalAmount: Number(r.totalAmount),
+    paid: round2(Number(r.paid)),
+    balanceDue: round2(Number(r.totalAmount) - Number(r.paid)),
+  }));
+
+  if (page !== undefined || limit !== undefined) {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
+    const total = formattedRows.length;
+    const paginatedData = formattedRows.slice(offset, offset + limitNum);
+
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  }
+
+  res.json(formattedRows);
 });
 
 const create = asyncHandler(async (req, res) => {

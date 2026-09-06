@@ -94,7 +94,11 @@ async function seed() {
   process.exit(0);
 }
 
-seed().catch((err) => {
-  console.error("Failed to seed 200 products:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error("Failed to seed 200 products:", err);
+    process.exit(1);
+  });
+}
+
+module.exports = { seed, generate200Products };

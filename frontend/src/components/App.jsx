@@ -5,6 +5,7 @@ import AdminDashboard from './AdminDashboard';
 import PortalDashboard from './PortalDashboard';
 import PrintInvoice from './PrintInvoice';
 import { getSession, clearSession, homeViewFor } from '../lib/api';
+import AnalyticsCharts from './AnalyticsCharts';
 import '../styles/App.css';
 
 const VIEW = {
@@ -302,6 +303,9 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {/* Shadcn UI Financial Analytics Charts */}
+        <AnalyticsCharts />
       </main>
 
       <footer className="site-footer">

@@ -22,31 +22,41 @@ const list = asyncHandler(async (req, res) => {
   if (type) conditions.push(eq(products.type, type));
   if (archived !== "true") conditions.push(eq(products.isArchived, false));
 
-  if (page && limit) {
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  if (page !== undefined || limit !== undefined) {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 20);
     const offsetNum = (pageNum - 1) * limitNum;
 
     const countQuery = db.select({ count: sql`count(*)` }).from(products);
-    if (conditions.length) countQuery.where(and(...conditions));
+    if (whereClause) countQuery.where(whereClause);
     const [countResult] = await countQuery;
     const total = Number(countResult?.count || 0);
 
     const dataQuery = db.select().from(products);
-    if (conditions.length) dataQuery.where(and(...conditions));
+    if (whereClause) dataQuery.where(whereClause);
     const rows = await dataQuery.orderBy(products.id).limit(limitNum).offset(offsetNum);
 
+    const serializedRows = rows.map(serialize);
     return res.json({
-      items: rows.map(serialize),
+      items: serializedRows,
+      data: serializedRows,
       total,
       page: pageNum,
       limit: limitNum,
       totalPages: Math.ceil(total / limitNum),
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
     });
   }
 
-  const rows = conditions.length
-    ? await db.select().from(products).where(and(...conditions)).orderBy(products.id)
+  const rows = whereClause
+    ? await db.select().from(products).where(whereClause).orderBy(products.id)
     : await db.select().from(products).orderBy(products.id);
   res.json(rows.map(serialize));
 });
