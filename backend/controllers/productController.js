@@ -1,4 +1,4 @@
-const { eq, and } = require("drizzle-orm");
+const { eq, and, sql } = require("drizzle-orm");
 const { db } = require("../db");
 const { products, orderLines } = require("../db/schema");
 const ApiError = require("../utils/apiError");
@@ -14,13 +14,37 @@ const serialize = (p) => ({
 });
 
 const list = asyncHandler(async (req, res) => {
-  const { type, archived } = req.query;
+  const { type, archived, page, limit } = req.query;
   if (type && !PRODUCT_TYPES.includes(type)) {
     throw new ApiError(400, `type must be one of: ${PRODUCT_TYPES.join(", ")}`);
   }
   const conditions = [];
   if (type) conditions.push(eq(products.type, type));
   if (archived !== "true") conditions.push(eq(products.isArchived, false));
+
+  if (page && limit) {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const offsetNum = (pageNum - 1) * limitNum;
+
+    const countQuery = db.select({ count: sql`count(*)` }).from(products);
+    if (conditions.length) countQuery.where(and(...conditions));
+    const [countResult] = await countQuery;
+    const total = Number(countResult?.count || 0);
+
+    const dataQuery = db.select().from(products);
+    if (conditions.length) dataQuery.where(and(...conditions));
+    const rows = await dataQuery.orderBy(products.id).limit(limitNum).offset(offsetNum);
+
+    return res.json({
+      items: rows.map(serialize),
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  }
+
   const rows = conditions.length
     ? await db.select().from(products).where(and(...conditions)).orderBy(products.id)
     : await db.select().from(products).orderBy(products.id);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch, money } from '../lib/api';
-import { Button, Banner } from './modules/ui';
+import { Button, Banner, Pagination } from './modules/ui';
 
 const CustomerStorefront = ({ onCheckoutSuccess }) => {
   const [products, setProducts] = useState([]);
@@ -8,6 +8,8 @@ const CustomerStorefront = ({ onCheckoutSuccess }) => {
   const [showCart, setShowCart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
 
   useEffect(() => {
     apiFetch('/products')
@@ -41,6 +43,8 @@ const CustomerStorefront = ({ onCheckoutSuccess }) => {
   const cartTotal = cart.reduce((acc, item) => acc + (item.quantity * item.unitPrice * (1 + item.taxRate / 100)), 0);
   const cartUntaxed = cart.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
 
+  const pagedProducts = products.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div className="storefront" style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--line-soft)' }}>
       <div className="row-between fade-in" style={{ marginBottom: '1.5rem' }}>
@@ -56,7 +60,7 @@ const CustomerStorefront = ({ onCheckoutSuccess }) => {
       {error && <Banner error={error} onDismiss={() => setError('')} />}
       
       <div className="grid-4 fade-in">
-        {loading ? <p>Loading store...</p> : products.length === 0 ? <p className="empty">No products available in the store.</p> : products.map(p => (
+        {loading ? <p>Loading store...</p> : products.length === 0 ? <p className="empty">No products available in the store.</p> : pagedProducts.map(p => (
           <div key={p.id} className="stat-card" style={{ display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', height: '100%', gap: 0 }}>
             {p.imageUrl ? (
               <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: 160, objectFit: 'cover', borderBottom: '1px solid var(--line-soft)' }} />
@@ -78,6 +82,8 @@ const CustomerStorefront = ({ onCheckoutSuccess }) => {
           </div>
         ))}
       </div>
+
+      <Pagination page={page} setPage={setPage} totalItems={products.length} pageSize={pageSize} />
 
       {showCart && (
         <CartModal 
