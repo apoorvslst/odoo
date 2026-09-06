@@ -7,5 +7,6 @@ router.use(authRequired, requireRole("contact"));
 router.get("/documents", controller.listMyDocuments);
 router.get("/documents/:id", controller.getMyDocument);
 router.post("/documents/:id/pay", controller.payMyDocument);
+router.post("/documents/checkout", controller.checkoutStore);
 
 module.exports = router;

@@ -1,10 +1,9 @@
 const ApiError = require("../utils/apiError");
 
-function notFound(req, res, next) {
+function notFound(req, res, next) {  // middle ware for not found stuff
   next(new ApiError(404, `Route not found: ${req.method} ${req.originalUrl}`));
 }
 
-// eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
   // Postgres constraint codes -> meaningful HTTP responses instead of 500s.
   if (err && err.code === "23505") {

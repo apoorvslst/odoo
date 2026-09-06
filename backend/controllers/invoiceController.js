@@ -16,6 +16,12 @@ const list = asyncHandler(async (req, res) => {
   if (kind) conditions.push(eq(invoices.kind, kind));
   if (status) conditions.push(eq(invoices.status, status));
 
+  // Portal privacy: Contact users see only their own documents (Customer invoices or Vendor bills)
+  if (req.user && req.user.role === "contact") {
+    if (!req.user.contactId) throw new ApiError(403, "Portal user has no linked contact profile");
+    conditions.push(eq(invoices.contactId, req.user.contactId));
+  }
+
   const base = db
     .select({
       id: invoices.id,
@@ -52,7 +58,20 @@ const list = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
-  const { kind = "invoice", contactId, date, dueDate, lines } = req.body || {};
+  let { kind = "invoice", contactId, date, dueDate, lines } = req.body || {};
+
+  // Portal security: Vendor submitting a bill
+  if (req.user && req.user.role === "contact") {
+    if (!req.user.contactId) throw new ApiError(403, "Portal user has no linked contact profile");
+    const [contact] = await db.select().from(contacts).where(eq(contacts.id, req.user.contactId));
+    if (!contact) throw new ApiError(404, "Linked contact not found");
+    if (!(contact.type === "vendor" || contact.type === "both")) {
+      throw new ApiError(403, "Only vendor contacts can submit bills");
+    }
+    kind = "bill";
+    contactId = req.user.contactId;
+  }
+
   const document = await createDraft({ kind, contactId, date, dueDate, lines });
   res.status(201).json(document);
 });
@@ -78,6 +97,10 @@ const getById = asyncHandler(async (req, res) => {
     .leftJoin(contacts, eq(contacts.id, invoices.contactId))
     .where(eq(invoices.id, id));
   if (!invoice) throw new ApiError(404, "Document not found");
+
+  if (req.user && req.user.role === "contact" && invoice.contactId !== req.user.contactId) {
+    throw new ApiError(403, "Access denied to other contacts' documents");
+  }
 
   const lines = await db
     .select({

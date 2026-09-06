@@ -4,6 +4,7 @@ const ACCOUNT_TYPES = ["Asset", "Liability", "Income", "Expense", "Capital"];
 const DEBIT_NORMAL_TYPES = ["Asset", "Expense"];
 
 const CONTACT_TYPES = ["customer", "vendor", "both"];
+const CONTACT_STATUSES = ["active", "pending_approval", "rejected"];
 const PRODUCT_TYPES = ["goods", "service", "combo"];
 const JOURNAL_TYPES = ["sale", "purchase", "bank", "cash"];
 const ANALYTIC_TYPES = ["income", "expense"];
@@ -32,6 +33,7 @@ module.exports = {
   ACCOUNT_TYPES,
   DEBIT_NORMAL_TYPES,
   CONTACT_TYPES,
+  CONTACT_STATUSES,
   PRODUCT_TYPES,
   JOURNAL_TYPES,
   ANALYTIC_TYPES,

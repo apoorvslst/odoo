@@ -12,11 +12,7 @@ async function hasActivity(accountId) {
     .where(eq(transactionLines.accountId, accountId))
     .limit(1);
   if (tl) return true;
-  const [il] = await db
-    .select({ id: invoiceLines.id })
-    .from(invoiceLines)
-    .where(eq(invoiceLines.accountId, accountId))
-    .limit(1);
+  const [il] = await db.select({ id: invoiceLines.id }).from(invoiceLines).where(eq(invoiceLines.accountId, accountId)).limit(1);
   return Boolean(il);
 }
 
@@ -25,12 +21,15 @@ const list = asyncHandler(async (req, res) => {
   if (type && !ACCOUNT_TYPES.includes(type)) {
     throw new ApiError(400, `type must be one of: ${ACCOUNT_TYPES.join(", ")}`);
   }
+  // type or archived ko query se le rhae hain
   const conditions = [];
-  if (type) conditions.push(eq(accounts.type, type));
+  if (type)   conditions.push(eq(accounts.type, type));
   if (archived !== "true") conditions.push(eq(accounts.isArchived, false));
+  // yahan pe hum conditions laga rhae hain 
   const rows = conditions.length
     ? await db.select().from(accounts).where(and(...conditions)).orderBy(accounts.accountCode)
     : await db.select().from(accounts).orderBy(accounts.accountCode);
+    // yahan pe hum account code ko sort kr rhae hain 
   res.json(rows.map((a) => ({ ...a, balance: Number(a.balance) })));
 });
 
@@ -68,7 +67,7 @@ const update = asyncHandler(async (req, res) => {
   if (type && type !== account.type && (await hasActivity(id))) {
     throw new ApiError(409, "Account type is locked once the account has activity");
   }
-
+// agar type change hoga and account me koi transaction lines hain toh error ayegi kyuki pehle uske saare transactions update krne honge baad me type change kr skte
   const [updated] = await db
     .update(accounts)
     .set({ accountName: accountName ?? account.accountName, type: type ?? account.type })
@@ -76,26 +75,25 @@ const update = asyncHandler(async (req, res) => {
     .returning();
   res.json(updated);
 });
-
+// updated naam ke array me store hoga
 const archive = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const [account] = await db.select().from(accounts).where(eq(accounts.id, id));
   if (!account) throw new ApiError(404, "Account not found");
-  const [updated] = await db
-    .update(accounts)
-    .set({ isArchived: !account.isArchived })
-    .where(eq(accounts.id, id))
-    .returning();
+  const [updated] = await db.update(accounts).set({ isArchived: !account.isArchived }).where(eq(accounts.id, id)).returning();
   res.json(updated);
 });
 
+// it can remove account
 const remove = asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const [account] = await db.select().from(accounts).where(eq(accounts.id, id));
   if (!account) throw new ApiError(404, "Account not found");
+
   if (await hasActivity(id)) {
     throw new ApiError(409, "Account has activity - archive it instead of deleting");
   }
+
   await db.delete(accounts).where(eq(accounts.id, id));
   res.status(204).end();
 });

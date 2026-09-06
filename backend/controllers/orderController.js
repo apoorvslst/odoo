@@ -45,6 +45,9 @@ const create = asyncHandler(async (req, res) => {
     const [contact] = await tx.select().from(contacts).where(eq(contacts.id, contactId));
     if (!contact) throw new ApiError(404, "Contact not found");
     if (contact.isArchived) throw new ApiError(400, "Contact is archived");
+    if (contact.status !== "active") {
+      throw new ApiError(400, `Cannot create order for contact with status '${contact.status}'. Contact must be approved first.`);
+    }
     if (kind === "purchase" && !(contact.type === "vendor" || contact.type === "both")) {
       throw new ApiError(400, "Purchase orders need a vendor");
     }

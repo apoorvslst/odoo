@@ -222,6 +222,34 @@ const dashboard = asyncHandler(async (req, res) => {
     }
   }
 
+  // Derive Section 43B(h) MSME risk summary for dashboard
+  const today = new Date();
+  const billRows = await db
+    .select({
+      id: invoices.id,
+      date: invoices.date,
+      totalAmount: invoices.totalAmount,
+      paid: sql`COALESCE(SUM(${payments.amount}), 0)`,
+    })
+    .from(invoices)
+    .leftJoin(payments, eq(payments.invoiceId, invoices.id))
+    .where(and(eq(invoices.kind, "bill"), sql`${invoices.transactionId} IS NOT NULL`))
+    .groupBy(invoices.id);
+
+  let msmeOverdueAmount = 0;
+  let msmeOverdueCount = 0;
+  for (const b of billRows) {
+    const unpaid = round2(Number(b.totalAmount) - Number(b.paid));
+    if (unpaid > 0) {
+      const billDate = new Date(b.date);
+      const ageDays = Math.floor((today.getTime() - billDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (ageDays > 45) {
+        msmeOverdueAmount = round2(msmeOverdueAmount + unpaid);
+        msmeOverdueCount++;
+      }
+    }
+  }
+
   const recentTransactions = await db
     .select({
       id: transactions.id,
@@ -246,7 +274,165 @@ const dashboard = asyncHandler(async (req, res) => {
     outstanding: { receivable, payable },
     documents: { byStatus },
     recentTransactions,
+    msmeRisk: {
+      overdueCount: msmeOverdueCount,
+      overdueAmount: msmeOverdueAmount,
+      potentialTaxHit: round2(msmeOverdueAmount * 0.30),
+      hasRisk: msmeOverdueAmount > 0,
+    },
   });
 });
 
-module.exports = { trialBalance, profitLoss, balanceSheet, ledger, dashboard };
+// Indian Furniture GST & Tax Analytics Report (Chapter 94 HSN 9401 & 9403)
+// + Section 43B(h) MSME 45-Day Disallowance & 30% Tax Penalty Exposure
+const taxReport = asyncHandler(async (req, res) => {
+  const range = dateRange(req.query);
+  const conditions = [sql`${invoices.transactionId} IS NOT NULL`];
+  if (range.from) conditions.push(gte(invoices.date, range.from));
+  if (range.to) conditions.push(lte(invoices.date, range.to));
+
+  const docRows = await db
+    .select({
+      id: invoices.id,
+      kind: invoices.kind,
+      subtotal: invoices.subtotal,
+      taxAmount: invoices.taxAmount,
+      totalAmount: invoices.totalAmount,
+      date: invoices.date,
+    })
+    .from(invoices)
+    .where(and(...conditions));
+
+  let outputTax = 0; // Tax collected from customers on sales (Output GST)
+  let inputTax = 0;  // Tax paid to vendors on material/wood purchases (Input Tax Credit - ITC)
+  let taxableSales = 0;
+  let taxablePurchases = 0;
+
+  for (const doc of docRows) {
+    const tax = Number(doc.taxAmount);
+    const sub = Number(doc.subtotal);
+    if (doc.kind === "invoice") {
+      outputTax = round2(outputTax + tax);
+      taxableSales = round2(taxableSales + sub);
+    } else {
+      inputTax = round2(inputTax + tax);
+      taxablePurchases = round2(taxablePurchases + sub);
+    }
+  }
+
+  // Under Indian GST: Net Tax = Output GST - Input Tax Credit (ITC)
+  const netGstPayable = round2(Math.max(0, outputTax - inputTax));
+  const excessItcCarriedForward = round2(Math.max(0, inputTax - outputTax));
+
+  // --- Section 43B(h) MSME Overdue & 30% Tax Disallowance Exposure ---
+  const { contacts } = require("../db/schema");
+  const today = new Date();
+
+  // Fetch all active vendor bills and their paid amounts
+  const allBills = await db
+    .select({
+      id: invoices.id,
+      contactId: invoices.contactId,
+      vendorName: contacts.name,
+      date: invoices.date,
+      dueDate: invoices.dueDate,
+      totalAmount: invoices.totalAmount,
+      status: invoices.status,
+      paid: sql`COALESCE(SUM(${payments.amount}), 0)`,
+    })
+    .from(invoices)
+    .innerJoin(contacts, eq(contacts.id, invoices.contactId))
+    .leftJoin(payments, eq(payments.invoiceId, invoices.id))
+    .where(and(eq(invoices.kind, "bill"), sql`${invoices.transactionId} IS NOT NULL`))
+    .groupBy(invoices.id, contacts.name);
+
+  let overdue45Amount = 0;
+  let overdue45Count = 0;
+  let approachingAmount = 0;
+  let approachingCount = 0;
+  let safeAmount = 0;
+  let safeCount = 0;
+
+  const billBreakdown = [];
+
+  for (const bill of allBills) {
+    const total = Number(bill.totalAmount);
+    const paid = Number(bill.paid);
+    const unpaid = round2(total - paid);
+
+    if (unpaid > 0) {
+      const billDate = new Date(bill.date);
+      const ageDays = Math.max(0, Math.floor((today.getTime() - billDate.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      let complianceStatus = "safe";
+      if (ageDays > 45) {
+        complianceStatus = "critical_overdue";
+        overdue45Amount = round2(overdue45Amount + unpaid);
+        overdue45Count++;
+      } else if (ageDays > 15) {
+        complianceStatus = "approaching_limit";
+        approachingAmount = round2(approachingAmount + unpaid);
+        approachingCount++;
+      } else {
+        safeAmount = round2(safeAmount + unpaid);
+        safeCount++;
+      }
+
+      billBreakdown.push({
+        id: bill.id,
+        billNumber: `BILL-${String(bill.id).padStart(4, "0")}`,
+        vendorName: bill.vendorName,
+        date: bill.date,
+        dueDate: bill.dueDate,
+        totalAmount: total,
+        paidAmount: paid,
+        unpaidAmount: unpaid,
+        ageDays,
+        complianceStatus, // critical_overdue (>45d) | approaching_limit (16-45d) | safe (<=15d)
+        taxPenaltyExposure: complianceStatus === "critical_overdue" ? round2(unpaid * 0.30) : 0,
+      });
+    }
+  }
+
+  // Sort bills: critical ones on top, then highest unpaid
+  billBreakdown.sort((a, b) => b.ageDays - a.ageDays);
+
+  const section43bRisk = {
+    totalUnpaidVendorBills: round2(overdue45Amount + approachingAmount + safeAmount),
+    overdue45DaysAmount: overdue45Amount,
+    overdue45DaysCount: overdue45Count,
+    potentialTaxPenalty: round2(overdue45Amount * 0.30), // 30% corporate/business tax disallowance hit
+    approachingAmount,
+    approachingCount,
+    safeAmount,
+    safeCount,
+    statutoryLimitDays: 45,
+    taxDisallowanceRate: 30, // 30%
+    bills: billBreakdown,
+  };
+
+  res.json({
+    period: range,
+    summary: {
+      taxableSales,
+      outputGst: outputTax,
+      outputCgst: round2(outputTax / 2),
+      outputSgst: round2(outputTax / 2),
+      taxablePurchases,
+      inputGstCredit: inputTax,
+      inputCgstCredit: round2(inputTax / 2),
+      inputSgstCredit: round2(inputTax / 2),
+      netGstPayable,
+      excessItcCarriedForward,
+    },
+    furnitureHsnRates: [
+      { hsn: "9403", description: "Wooden Furniture, Dining Tables, Beds, Desks", rate: 18, cgst: 9, sgst: 9 },
+      { hsn: "9401", description: "Chairs, Office Ergonomic Seats, Sofas", rate: 18, cgst: 9, sgst: 9 },
+      { hsn: "9403.80", description: "Bamboo / Cane / Handcrafted Furniture", rate: 12, cgst: 6, sgst: 6 },
+      { hsn: "9404", description: "Mattresses, Bedding Articles", rate: 18, cgst: 9, sgst: 9 },
+    ],
+    section43bRisk,
+  });
+});
+
+module.exports = { trialBalance, profitLoss, balanceSheet, ledger, dashboard, taxReport };

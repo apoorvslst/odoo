@@ -1,19 +1,24 @@
+const bcrypt = require("bcryptjs");
 const { eq, and } = require("drizzle-orm");
 const { db } = require("../db");
-const { contacts, invoices } = require("../db/schema");
+const { contacts, users, invoices } = require("../db/schema");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
-const { CONTACT_TYPES } = require("../utils/constants");
+const { CONTACT_TYPES, CONTACT_STATUSES } = require("../utils/constants");
 
 const FIELDS = ["name", "type", "email", "mobile", "city", "state", "pincode", "profileImage"];
 
 const list = asyncHandler(async (req, res) => {
-  const { type, archived } = req.query;
+  const { type, status, archived } = req.query;
   if (type && !CONTACT_TYPES.includes(type)) {
     throw new ApiError(400, `type must be one of: ${CONTACT_TYPES.join(", ")}`);
   }
+  if (status && !CONTACT_STATUSES.includes(status)) {
+    throw new ApiError(400, `status must be one of: ${CONTACT_STATUSES.join(", ")}`);
+  }
   const conditions = [];
   if (type) conditions.push(eq(contacts.type, type));
+  if (status) conditions.push(eq(contacts.status, status));
   // Archived master data is hidden by default, not deleted.
   if (archived !== "true") conditions.push(eq(contacts.isArchived, false));
   const rows = conditions.length
@@ -79,4 +84,88 @@ const remove = asyncHandler(async (req, res) => {
   res.status(204).end();
 });
 
-module.exports = { list, create, getById, update, archive, remove };
+// Two-step onboarding: Customer/Vendor self-registration through public portal
+const registerPortal = asyncHandler(async (req, res) => {
+  const { name, type = "customer", email, mobile, city, state, pincode, password } = req.body || {};
+  if (!name || !email || !password) {
+    throw new ApiError(400, "name, email and password are required");
+  }
+  if (type && !["customer", "vendor"].includes(type)) {
+    throw new ApiError(400, "type must be 'customer' or 'vendor'");
+  }
+  if (String(password).length < 6) {
+    throw new ApiError(400, "password must be at least 6 characters");
+  }
+
+  const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  if (existingUser) throw new ApiError(409, "Email is already registered");
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const result = await db.transaction(async (tx) => {
+    const [contact] = await tx
+      .insert(contacts)
+      .values({
+        name,
+        type,
+        email,
+        mobile: mobile || null,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        status: "pending_approval",
+      })
+      .returning();
+
+    const [user] = await tx
+      .insert(users)
+      .values({
+        username: name,
+        email,
+        passwordHash,
+        role: "contact",
+        contactId: contact.id,
+      })
+      .returning();
+
+    return { contact, user };
+  });
+
+  res.status(201).json({
+    message: "Registration submitted successfully. Your account is pending accountant approval.",
+    contactId: result.contact.id,
+    status: result.contact.status,
+  });
+});
+
+// Accountant vetting: approve a pending contact
+const approve = asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+  if (!contact) throw new ApiError(404, "Contact not found");
+
+  const [updated] = await db
+    .update(contacts)
+    .set({ status: "active" })
+    .where(eq(contacts.id, id))
+    .returning();
+
+  res.json(updated);
+});
+
+// Accountant vetting: reject a contact
+const reject = asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+  if (!contact) throw new ApiError(404, "Contact not found");
+
+  const [updated] = await db
+    .update(contacts)
+    .set({ status: "rejected" })
+    .where(eq(contacts.id, id))
+    .returning();
+
+  res.json(updated);
+});
+
+module.exports = { list, create, getById, update, archive, remove, registerPortal, approve, reject };

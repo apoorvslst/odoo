@@ -1,7 +1,6 @@
 const { pgTable, serial, varchar, text, boolean, integer, numeric, date, timestamp } = require("drizzle-orm/pg-core");
 
-// ---------------- Master data ----------------
-
+// customer/Vendor 
 const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -12,6 +11,7 @@ const contacts = pgTable("contacts", {
   state: varchar("state", { length: 100 }),
   pincode: varchar("pincode", { length: 20 }),
   profileImage: varchar("profile_image", { length: 500 }),
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active | pending_approval | rejected
   isArchived: boolean("is_archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -35,6 +35,7 @@ const products = pgTable("products", {
   purchaseCost: numeric("purchase_cost", { precision: 15, scale: 2 }).notNull().default("0.00"),
   category: varchar("category", { length: 100 }),
   quantityOnHand: numeric("quantity_on_hand", { precision: 15, scale: 2 }).notNull().default("0.00"),
+  imageUrl: text("image_url"),
   isArchived: boolean("is_archived").notNull().default(false),
 });
 
@@ -66,51 +67,37 @@ const analyticAccounts = pgTable("analytic_accounts", {
 
 const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  journalId: integer("journal_id")
-    .notNull()
-    .references(() => journals.id),
+  journalId: integer("journal_id").notNull().references(() => journals.id),
   date: date("date").notNull(),
   description: text("description"),
   reference: varchar("reference", { length: 255 }),
-  createdBy: integer("created_by")
-    .notNull()
-    .references(() => users.id),
+  createdBy: integer("created_by") .notNull().references(() => users.id),
 });
 
 const transactionLines = pgTable("transaction_lines", {
   id: serial("id").primaryKey(),
-  transactionId: integer("transaction_id")
-    .notNull()
-    .references(() => transactions.id, { onDelete: "cascade" }),
-  accountId: integer("account_id")
-    .notNull()
-    .references(() => accounts.id),
+  transactionId: integer("transaction_id").notNull().references(() => transactions.id, { onDelete: "cascade" }),
+  accountId: integer("account_id").notNull().references(() => accounts.id),
   debit: numeric("debit", { precision: 15, scale: 2 }).notNull().default("0.00"),
   credit: numeric("credit", { precision: 15, scale: 2 }).notNull().default("0.00"),
 });
 
 // ---------------- Documents (order -> invoice/bill -> payment) ----------------
-
+ 
 const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   kind: varchar("kind", { length: 10 }).notNull(), // purchase | sale
-  contactId: integer("contact_id")
-    .notNull()
-    .references(() => contacts.id),
+  contactId: integer("contact_id").notNull().references(() => contacts.id),
   date: date("date").notNull(),
   status: varchar("status", { length: 20 }).notNull().default("draft"), // draft | confirmed | converted
   totalAmount: numeric("total_amount", { precision: 15, scale: 2 }).notNull().default("0.00"),
-  createdBy: integer("created_by")
-    .notNull()
-    .references(() => users.id),
+  createdBy: integer("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 const orderLines = pgTable("order_lines", {
   id: serial("id").primaryKey(),
-  orderId: integer("order_id")
-    .notNull()
-    .references(() => orders.id, { onDelete: "cascade" }),
+  orderId: integer("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
   productId: integer("product_id").references(() => products.id),
   analyticAccountId: integer("analytic_account_id").references(() => analyticAccounts.id),
   description: text("description"),
@@ -123,9 +110,7 @@ const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   kind: varchar("kind", { length: 10 }).notNull(), // invoice (customer) | bill (vendor)
   orderId: integer("order_id").references(() => orders.id), // source document, if converted
-  contactId: integer("contact_id")
-    .notNull()
-    .references(() => contacts.id),
+  contactId: integer("contact_id").notNull().references(() => contacts.id),
   transactionId: integer("transaction_id").references(() => transactions.id), // the posting; null while draft
   date: date("date").notNull(),
   dueDate: date("due_date").notNull(),
@@ -137,13 +122,9 @@ const invoices = pgTable("invoices", {
 
 const invoiceLines = pgTable("invoice_lines", {
   id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id")
-    .notNull()
-    .references(() => invoices.id, { onDelete: "cascade" }),
+  invoiceId: integer("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
   productId: integer("product_id").references(() => products.id),
-  accountId: integer("account_id")
-    .notNull()
-    .references(() => accounts.id), // income account (sale) / expense account (bill)
+  accountId: integer("account_id").notNull().references(() => accounts.id), // income account (sale) / expense account (bill)
   analyticAccountId: integer("analytic_account_id").references(() => analyticAccounts.id), // budget actuals link
   description: text("description"),
   quantity: numeric("quantity", { precision: 15, scale: 2 }).notNull().default("1.00"),
@@ -153,15 +134,9 @@ const invoiceLines = pgTable("invoice_lines", {
 
 const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
-  invoiceId: integer("invoice_id")
-    .notNull()
-    .references(() => invoices.id),
-  transactionId: integer("transaction_id")
-    .notNull()
-    .references(() => transactions.id),
-  journalId: integer("journal_id")
-    .notNull()
-    .references(() => journals.id), // cash or bank journal used
+  invoiceId: integer("invoice_id").notNull().references(() => invoices.id),
+  transactionId: integer("transaction_id").notNull().references(() => transactions.id),
+  journalId: integer("journal_id").notNull().references(() => journals.id), // cash or bank journal used
   date: date("date").notNull(),
   amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
   method: varchar("method", { length: 20 }).notNull(), // cash | bank
@@ -174,9 +149,7 @@ const budgets = pgTable("budgets", {
   name: varchar("name", { length: 255 }).notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  responsibleId: integer("responsible_id")
-    .notNull()
-    .references(() => users.id),
+  responsibleId: integer("responsible_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

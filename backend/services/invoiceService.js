@@ -31,6 +31,9 @@ async function createDraft({ kind, contactId, date, dueDate, orderId = null, lin
     const [contact] = await tx.select().from(contacts).where(eq(contacts.id, contactId));
     if (!contact) throw new ApiError(404, "Contact not found");
     if (contact.isArchived) throw new ApiError(400, "Contact is archived");
+    if (contact.status !== "active" && kind === "bill") {
+      throw new ApiError(400, `Cannot issue vendor bills for contact with status '${contact.status}'. Contact must be approved first.`);
+    }
     assertContactKind(contact, kind);
 
     const fallbackAccount = await getAccountByCode(

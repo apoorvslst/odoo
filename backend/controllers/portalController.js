@@ -4,7 +4,9 @@ const { invoices, payments } = require("../db/schema");
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { recordPayment } = require("../services/paymentService");
+const { createDraft, postInvoice } = require("../services/invoiceService");
 const { round2 } = require("../utils/money");
+const { contacts } = require("../db/schema");
 
 // Portal = what a contact user sees. Everything is scoped to req.user.contactId
 // (from the JWT), so a contact can never touch another contact's documents.
@@ -82,4 +84,43 @@ const payMyDocument = asyncHandler(async (req, res) => {
   res.status(201).json(payment);
 });
 
-module.exports = { listMyDocuments, getMyDocument, payMyDocument };
+const checkoutStore = asyncHandler(async (req, res) => {
+  const { cartItems, paymentAmount, paymentMethod = "bank" } = req.body || {};
+  
+  // 1. Verify user is a customer
+  const [contact] = await db.select().from(contacts).where(eq(contacts.id, req.user.contactId));
+  if (!contact) throw new ApiError(404, "Linked contact not found");
+  if (contact.type !== "customer" && contact.type !== "both") {
+    throw new ApiError(403, "Only customers can use the storefront checkout");
+  }
+  
+  if (!cartItems || !cartItems.length) throw new ApiError(400, "Cart is empty");
+  
+  // 2. Create the draft sales invoice
+  const today = new Date().toISOString().split("T")[0];
+  const draft = await createDraft({
+    kind: "invoice",
+    contactId: req.user.contactId,
+    date: today,
+    dueDate: today,
+    lines: cartItems,
+  });
+  
+  // 3. Auto-post the invoice (since it's a direct web sale)
+  const posted = await postInvoice({ invoiceId: draft.id, userId: req.user.id });
+  
+  // 4. Record the payment if one was made
+  let paymentRecord = null;
+  if (paymentAmount > 0) {
+    paymentRecord = await recordPayment({
+      invoiceId: posted.invoice.id,
+      amount: paymentAmount,
+      method: paymentMethod,
+      userId: req.user.id,
+    });
+  }
+  
+  res.status(201).json({ invoice: posted.invoice, payment: paymentRecord });
+});
+
+module.exports = { listMyDocuments, getMyDocument, payMyDocument, checkoutStore };

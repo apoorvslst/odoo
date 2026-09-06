@@ -5,7 +5,8 @@ const paymentController = require("../controllers/paymentController");
 
 router.use(authRequired);
 router.get("/", invoiceController.list);
-router.post("/", requireRole("admin", "accountant"), invoiceController.create);
+// Create invoice/bill (Admin/Accountant creates both; Vendor submits own bill)
+router.post("/", invoiceController.create);
 router.get("/:id", invoiceController.getById);
 router.post("/:id/post", requireRole("admin", "accountant"), invoiceController.post);
 

@@ -5,36 +5,33 @@ const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { round2, money } = require("../utils/money");
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/; // ye regex hai YYYY-MM-DD
 
 const list = asyncHandler(async (req, res) => {
-  const rows = await db
-    .select({
+  const rows = await db.select({
       id: budgets.id,
       name: budgets.name,
       startDate: budgets.startDate,
       endDate: budgets.endDate,
       responsibleId: budgets.responsibleId,
       responsibleName: users.username,
-    })
-    .from(budgets)
-    .leftJoin(users, eq(users.id, budgets.responsibleId))
-    .orderBy(budgets.id);
+    }).from(budgets).leftJoin(users, eq(users.id, budgets.responsibleId)).orderBy(budgets.id);
   res.json(rows);
 });
-
+// budget ki line banate
 const create = asyncHandler(async (req, res) => {
   const { name, startDate, endDate, responsibleId, lines } = req.body || {};
   if (!name || !startDate || !endDate || !responsibleId) {
     throw new ApiError(400, "name, startDate, endDate and responsibleId are required");
   }
+ // edge case dekhte
   if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) throw new ApiError(400, "dates must be YYYY-MM-DD");
   if (endDate < startDate) throw new ApiError(400, "endDate cannot be before startDate");
   if (!Array.isArray(lines) || lines.length === 0) throw new ApiError(400, "Budget needs at least one line");
 
   const [responsible] = await db.select({ id: users.id }).from(users).where(eq(users.id, responsibleId));
   if (!responsible) throw new ApiError(404, "Responsible user not found");
-
+  
   const analyticIds = [...new Set(lines.map((l) => l.analyticAccountId))];
   for (const aid of analyticIds) {
     const [a] = await db.select({ id: analyticAccounts.id }).from(analyticAccounts).where(eq(analyticAccounts.id, aid));
