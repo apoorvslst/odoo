@@ -17,5 +17,12 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Fetch-on-mount sets loading/data state from an effect on purpose
+      // (no react-query in this project); the compiler lint flags every such loader.
+      'react-hooks/set-state-in-effect': 'off',
+      // ui.jsx exports the shared usePagedSearch hook next to tiny presentational components.
+      'react-refresh/only-export-components': 'off',
+    },
   },
 ])

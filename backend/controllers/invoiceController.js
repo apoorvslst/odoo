@@ -4,6 +4,7 @@ const { invoices, invoiceLines, contacts, accounts, products, payments } = requi
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { createDraft, postInvoice } = require("../services/invoiceService");
+const { sendInvoiceEmail } = require("../services/emailService");
 const { INVOICE_KINDS } = require("../utils/constants");
 const { round2 } = require("../utils/money");
 
@@ -149,4 +150,12 @@ const post = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-module.exports = { list, create, getById, post };
+const sendReminder = asyncHandler(async (req, res) => {
+  const url = await sendInvoiceEmail(Number(req.params.id), true);
+  if (!url) {
+    throw new ApiError(500, "Failed to send email");
+  }
+  res.json({ success: true, url });
+});
+
+module.exports = { list, create, getById, post, sendReminder };

@@ -5,6 +5,7 @@ const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const { recordPayment } = require("../services/paymentService");
 const { createDraft, postInvoice } = require("../services/invoiceService");
+const { sendInvoiceEmail } = require("../services/emailService");
 const { round2 } = require("../utils/money");
 
 // Portal = what a contact user sees. Everything is scoped to req.user.contactId
@@ -106,6 +107,9 @@ const checkoutStore = asyncHandler(async (req, res) => {
 
   // 2. Create Draft Invoice (DO NOT POST)
   const draft = await createDraft(invoicePayload);
+  
+  // 3. Send Email Notification (async, don't wait for it to finish)
+  sendInvoiceEmail(draft.id, false).catch(err => console.error("Email failed:", err));
   
   // Return the draft invoice (pending admin approval)
   res.status(201).json({ invoice: draft, payment: null });

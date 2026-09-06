@@ -9,6 +9,7 @@ router.get("/", invoiceController.list);
 router.post("/", invoiceController.create);
 router.get("/:id", invoiceController.getById);
 router.post("/:id/post", requireRole("admin", "accountant"), invoiceController.post);
+router.post("/:id/remind", requireRole("admin", "accountant"), invoiceController.sendReminder);
 
 // Payments are nested under documents - a payment always belongs to one.
 router.get("/:id/payments", paymentController.listForInvoice);
