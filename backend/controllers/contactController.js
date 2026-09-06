@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { eq, and } = require("drizzle-orm");
+const { eq, and, sql } = require("drizzle-orm");
 const { db } = require("../db");
 const { contacts, users, invoices } = require("../db/schema");
 const ApiError = require("../utils/apiError");
@@ -9,7 +9,7 @@ const { CONTACT_TYPES, CONTACT_STATUSES } = require("../utils/constants");
 const FIELDS = ["name", "type", "email", "mobile", "city", "state", "pincode", "profileImage"];
 
 const list = asyncHandler(async (req, res) => {
-  const { type, status, archived } = req.query;
+  const { type, status, archived, page, limit } = req.query;
   if (type && !CONTACT_TYPES.includes(type)) {
     throw new ApiError(400, `type must be one of: ${CONTACT_TYPES.join(", ")}`);
   }
@@ -21,8 +21,36 @@ const list = asyncHandler(async (req, res) => {
   if (status) conditions.push(eq(contacts.status, status));
   // Archived master data is hidden by default, not deleted.
   if (archived !== "true") conditions.push(eq(contacts.isArchived, false));
-  const rows = conditions.length
-    ? await db.select().from(contacts).where(and(...conditions)).orderBy(contacts.id)
+
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  if (page !== undefined || limit !== undefined) {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    const [{ count }] = whereClause
+      ? await db.select({ count: sql`count(*)` }).from(contacts).where(whereClause)
+      : await db.select({ count: sql`count(*)` }).from(contacts);
+
+    const total = Number(count);
+    const query = db.select().from(contacts);
+    if (whereClause) query.where(whereClause);
+    const rows = await query.orderBy(contacts.id).limit(limitNum).offset(offset);
+
+    return res.json({
+      data: rows,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  }
+
+  const rows = whereClause
+    ? await db.select().from(contacts).where(whereClause).orderBy(contacts.id)
     : await db.select().from(contacts).orderBy(contacts.id);
   res.json(rows);
 });

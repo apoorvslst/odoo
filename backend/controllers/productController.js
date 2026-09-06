@@ -1,4 +1,4 @@
-const { eq, and } = require("drizzle-orm");
+const { eq, and, sql } = require("drizzle-orm");
 const { db } = require("../db");
 const { products, orderLines } = require("../db/schema");
 const ApiError = require("../utils/apiError");
@@ -14,15 +14,44 @@ const serialize = (p) => ({
 });
 
 const list = asyncHandler(async (req, res) => {
-  const { type, archived } = req.query;
+  const { type, archived, page, limit } = req.query;
   if (type && !PRODUCT_TYPES.includes(type)) {
     throw new ApiError(400, `type must be one of: ${PRODUCT_TYPES.join(", ")}`);
   }
   const conditions = [];
   if (type) conditions.push(eq(products.type, type));
   if (archived !== "true") conditions.push(eq(products.isArchived, false));
-  const rows = conditions.length
-    ? await db.select().from(products).where(and(...conditions)).orderBy(products.id)
+
+  const whereClause = conditions.length ? and(...conditions) : undefined;
+
+  // If page or limit parameters are explicitly passed, return paginated envelope
+  if (page !== undefined || limit !== undefined) {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    const [{ count }] = whereClause
+      ? await db.select({ count: sql`count(*)` }).from(products).where(whereClause)
+      : await db.select({ count: sql`count(*)` }).from(products);
+
+    const total = Number(count);
+    const query = db.select().from(products);
+    if (whereClause) query.where(whereClause);
+    const rows = await query.orderBy(products.id).limit(limitNum).offset(offset);
+
+    return res.json({
+      data: rows.map(serialize),
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  }
+
+  const rows = whereClause
+    ? await db.select().from(products).where(whereClause).orderBy(products.id)
     : await db.select().from(products).orderBy(products.id);
   res.json(rows.map(serialize));
 });
